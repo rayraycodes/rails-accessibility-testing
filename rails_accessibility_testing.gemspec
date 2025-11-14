@@ -16,13 +16,18 @@ Gem::Specification.new do |spec|
   # Include all necessary files
   spec.files         = Dir[
     "lib/**/*.rb",
+    "lib/**/*.rake",
     "lib/**/*.md",
+    "exe/**/*",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ].reject { |f| f.match?(/\.yardoc|doc\//) }
   
   spec.require_paths = ["lib"]
+  
+  # Add executables
+  spec.executables = ["rails_server_safe"]
 
   # Runtime dependencies
   spec.add_dependency "axe-core-capybara", "~> 4.0"

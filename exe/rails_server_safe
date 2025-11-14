@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+
+# Safe wrapper for Rails server that doesn't fail if server is already running
+# This prevents Foreman from terminating all processes when server is already up
+
+PIDFILE="${PIDFILE:-tmp/pids/server.pid}"
+PORT="${PORT:-3000}"
+
+# Check if PID file exists
+if [ -f "$PIDFILE" ]; then
+  PID=$(cat "$PIDFILE" 2>/dev/null)
+  
+  # Check if the process is actually running
+  if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+    # Check if it's listening on the expected port
+    if lsof -ti:$PORT -sTCP:LISTEN | grep -q "^$PID$" 2>/dev/null; then
+      echo "Server is already running (pid: $PID, port: $PORT)"
+      exit 0
+    else
+      # PID exists but not listening on port - stale PID file
+      echo "Removing stale PID file (pid: $PID not listening on port $PORT)"
+      rm -f "$PIDFILE"
+    fi
+  else
+    # PID file exists but process is dead - stale PID file
+    echo "Removing stale PID file (process $PID not running)"
+    rm -f "$PIDFILE"
+  fi
+fi
+
+# Check if something else is using the port
+if lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+  EXISTING_PID=$(lsof -ti:$PORT -sTCP:LISTEN | head -1)
+  echo "Port $PORT is already in use by process $EXISTING_PID"
+  echo "Server may already be running. Exiting gracefully."
+  exit 0
+fi
+
+# Start the server normally
+exec bin/rails server "$@"
+
