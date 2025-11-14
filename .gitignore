@@ -1,0 +1,45 @@
+# Gem build artifacts
+*.gem
+*.gemspec.bak
+
+# Documentation
+/.yardoc/
+/doc/
+/rdoc/
+
+# Bundler
+/.bundle/
+/vendor/bundle
+
+# RSpec
+/spec/examples.txt
+/coverage/
+
+# IDE
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Test artifacts
+/test/tmp/
+/test/fixtures/files/tmp/
+
+# Environment
+.env
+.env.local
+
+# Build directories
+/pkg/

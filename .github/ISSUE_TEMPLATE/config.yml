@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/rayraycodes/rails-accessibility-testing/discussions
+    about: Ask questions and discuss ideas
+  - name: 📧 Email Support
+    url: mailto:imregan@umich.edu
+    about: Contact the maintainer directly
+
