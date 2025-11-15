@@ -52,7 +52,8 @@ jobs:
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
           
           # Build Jekyll site (generates index.html from index.md)
-          bundle exec jekyll build --baseurl "/$REPO_NAME" --quiet
+          # Suppress Sass deprecation warnings (they're harmless)
+          bundle exec jekyll build --baseurl "/$REPO_NAME" --quiet 2>&1 | grep -v "DEPRECATION WARNING" || true
           
           # Verify build completed and index.html was generated
           if [ ! -f "_site/index.html" ]; then
@@ -63,29 +64,28 @@ jobs:
           echo "✅ Jekyll build complete: _site/index.html generated"
 
       - name: Prepare artifact
-        working-directory: ./docs_site
         run: |
           set -e
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
           
-          # Create artifact structure: _site/$REPO_NAME/
-          mkdir -p ../_site/$REPO_NAME
+          # Create artifact structure at root: $REPO_NAME/
+          mkdir -p $REPO_NAME
           
-          # Copy all built files (index.html should be here now)
-          cp -r _site/* ../_site/$REPO_NAME/ 2>/dev/null || true
+          # Copy all built files from docs_site/_site/ to root $REPO_NAME/
+          cp -r docs_site/_site/* $REPO_NAME/ 2>/dev/null || true
           
           # Verify index.html was copied successfully
-          if [ ! -f "../_site/$REPO_NAME/index.html" ]; then
-            echo "❌ Copy failed: index.html not found in _site/$REPO_NAME/"
+          if [ ! -f "$REPO_NAME/index.html" ]; then
+            echo "❌ Copy failed: index.html not found in $REPO_NAME/"
             exit 1
           fi
           
-          echo "✅ Artifact prepared: _site/$REPO_NAME/index.html ready for deployment"
+          echo "✅ Artifact prepared: $REPO_NAME/index.html ready for deployment"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: ${{ github.event.repository.name }}
 
       - name: Deploy to GitHub Pages
         id: deployment
