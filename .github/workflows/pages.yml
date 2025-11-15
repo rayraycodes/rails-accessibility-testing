@@ -16,6 +16,14 @@ permissions:
   pages: write
   id-token: write
 
+# Optional: If OIDC doesn't work, you can use a GitHub Personal Access Token (PAT)
+# 1. Create a PAT with 'repo' and 'pages' scopes
+# 2. Go to Settings → Secrets and variables → Actions
+# 3. Add a secret named 'GITHUB_TOKEN' or 'PAGES_TOKEN'
+# 4. Uncomment the token line below if needed
+# env:
+#   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.PAGES_TOKEN }}
+
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -29,6 +37,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Use token if provided, otherwise use default GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN || secrets.PAGES_TOKEN || github.token }}
       
       - name: Verify Pages source
         run: |
@@ -91,7 +102,15 @@ jobs:
           echo "Site URL: ${{ steps.deployment.outputs.page_url }}"
           echo ""
           echo "Expected URL: https://${{ github.repository_owner }}.github.io/rails-accessibility-testing/"
-          echo "If you see '/site/' in the URL, check repository Settings → Pages configuration"
+          echo ""
+          echo "⚠️  IMPORTANT: If you get a 404 error:"
+          echo "   1. Wait 1-2 minutes for GitHub Pages to propagate"
+          echo "   2. Clear your browser cache or try incognito mode"
+          echo "   3. Make sure you're visiting: https://${{ github.repository_owner }}.github.io/rails-accessibility-testing/"
+          echo "   4. Check that the URL ends with a trailing slash: /rails-accessibility-testing/"
+          echo "   5. Try visiting: https://${{ github.repository_owner }}.github.io/rails-accessibility-testing/index.html"
+          echo ""
+          echo "The files are deployed. If 404 persists after 2 minutes, check repository Settings → Pages"
 
       - name: Check deployment status
         if: failure()

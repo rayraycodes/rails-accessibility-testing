@@ -17,6 +17,26 @@ Complete guide for setting up and deploying the documentation site to GitHub Pag
 - Make absolutely sure Pages source is set to "GitHub Actions" only
 - The `.nojekyll` file in the repo root prevents auto-detection
 
+### Step 1.5: Authentication (Optional - Usually Not Needed)
+
+The workflow uses **OIDC tokens** by default (most secure). If you encounter authentication errors:
+
+1. **Create a Personal Access Token (PAT):**
+   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Generate new token with scopes: `repo` and `pages`
+   - Copy the token
+
+2. **Add as Secret:**
+   - Go to repository → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `PAGES_TOKEN` (or `GITHUB_TOKEN`)
+   - Value: Paste your PAT
+   - Click "Add secret"
+
+3. **The workflow will automatically use it** if OIDC fails
+
+**Note:** OIDC should work for most repositories. Only add a PAT if you see authentication errors.
+
 ### Step 2: Deploy
 
 **Option A: Automatic (Recommended)**
@@ -102,7 +122,32 @@ This ensures:
 - Test locally: `cd docs_site && bundle exec jekyll build --baseurl "/rails-accessibility-testing"`
 - Verify all required files exist
 
-### "404 Not Found" or URL shows `/site/` in path
+### "404 Not Found" - Deployment Successful But Page Not Found
+
+**If deployment shows success but you get 404:**
+
+This is usually a **propagation delay** or **caching issue**. Try these steps in order:
+
+1. **Wait 1-2 minutes** - GitHub Pages needs time to propagate changes
+2. **Clear browser cache** or use **incognito/private mode**
+3. **Check the exact URL:**
+   - ✅ Correct: `https://YOUR_USERNAME.github.io/rails-accessibility-testing/` (with trailing slash)
+   - ✅ Also try: `https://YOUR_USERNAME.github.io/rails-accessibility-testing/index.html`
+   - ❌ Wrong: `https://YOUR_USERNAME.github.io/rails-accessibility-testing` (no trailing slash)
+4. **Verify deployment:**
+   - Go to **Actions** tab → Check workflow completed successfully
+   - Look for "✅ index.html found" in the logs
+   - Check "Deployment info" step shows correct URL
+5. **Check repository Settings → Pages:**
+   - Source should be "GitHub Actions"
+   - Should show "Your site is live at: https://YOUR_USERNAME.github.io/"
+
+**If 404 persists after 5 minutes:**
+- Check workflow logs for any errors
+- Verify artifact structure shows `rails-accessibility-testing/index.html`
+- Try visiting the direct file: `https://YOUR_USERNAME.github.io/rails-accessibility-testing/index.html`
+
+### URL shows `/site/` in path
 
 **If you see `/site/` in the URL:**
 
@@ -116,9 +161,6 @@ This usually means:
 - **Wrong URL:** `https://YOUR_USERNAME.github.io/site/rails-accessibility-testing/`
 - Go to **Settings** → **Pages** → Verify source is "GitHub Actions"
 - Check repository name matches expected path
-- Wait 1-2 minutes after deployment
-- Visit `/rails-accessibility-testing/` not just root
-- Check workflow logs for "Deployment info" to see actual URL
 
 ### Check Pages Status
 
