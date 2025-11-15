@@ -56,7 +56,9 @@ jobs:
           
           # Create artifact structure: _site/$REPO_NAME/
           mkdir -p ../_site/$REPO_NAME
-          find _site -mindepth 1 -maxdepth 1 ! -name '.git' -exec cp -r {} ../_site/$REPO_NAME/
+          shopt -s dotglob
+          cp -r _site/* ../_site/$REPO_NAME/ 2>/dev/null || true
+          cp -r _site/.[!.]* ../_site/$REPO_NAME/ 2>/dev/null || true
           
           # Verify index.html exists
           if [ ! -f "../_site/$REPO_NAME/index.html" ]; then
