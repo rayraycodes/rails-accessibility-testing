@@ -43,7 +43,7 @@ jobs:
         uses: actions/configure-pages@v4
         continue-on-error: true
 
-      - name: Build and prepare artifact
+      - name: Build Jekyll site
         working-directory: ./docs_site
         env:
           JEKYLL_ENV: production
@@ -51,22 +51,36 @@ jobs:
           set -e
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
           
-          # Build Jekyll site
+          # Build Jekyll site (generates index.html from index.md)
           bundle exec jekyll build --baseurl "/$REPO_NAME" --quiet
           
-          # Create artifact structure: _site/$REPO_NAME/
-          mkdir -p ../_site/$REPO_NAME
-          shopt -s dotglob
-          cp -r _site/* ../_site/$REPO_NAME/ 2>/dev/null || true
-          cp -r _site/.[!.]* ../_site/$REPO_NAME/ 2>/dev/null || true
-          
-          # Verify index.html exists
-          if [ ! -f "../_site/$REPO_NAME/index.html" ]; then
-            echo "❌ index.html not found in _site/$REPO_NAME/"
+          # Verify build completed and index.html was generated
+          if [ ! -f "_site/index.html" ]; then
+            echo "❌ Build failed: index.html not generated in _site/"
             exit 1
           fi
           
-          echo "✅ Built successfully: _site/$REPO_NAME/index.html"
+          echo "✅ Jekyll build complete: _site/index.html generated"
+
+      - name: Prepare artifact
+        working-directory: ./docs_site
+        run: |
+          set -e
+          REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
+          
+          # Create artifact structure: _site/$REPO_NAME/
+          mkdir -p ../_site/$REPO_NAME
+          
+          # Copy all built files (index.html should be here now)
+          cp -r _site/* ../_site/$REPO_NAME/ 2>/dev/null || true
+          
+          # Verify index.html was copied successfully
+          if [ ! -f "../_site/$REPO_NAME/index.html" ]; then
+            echo "❌ Copy failed: index.html not found in _site/$REPO_NAME/"
+            exit 1
+          fi
+          
+          echo "✅ Artifact prepared: _site/$REPO_NAME/index.html ready for deployment"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
