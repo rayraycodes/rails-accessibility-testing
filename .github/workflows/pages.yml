@@ -50,6 +50,7 @@ jobs:
         run: |
           set -e
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
+          CURRENT_YEAR=$(date +%Y)
           
           # Build Jekyll site (generates index.html from index.md)
           # Suppress Sass deprecation warnings (they're harmless)

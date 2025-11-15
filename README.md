@@ -7,6 +7,10 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
+**Current Version:** 1.1.0
+
+📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
+
 Rails Accessibility Testing is a comprehensive, opinionated but configurable gem that makes accessibility testing as natural as unit testing. It integrates seamlessly into your Rails workflow, catching accessibility issues as you code—not after deployment.
 
 ## 🎯 Positioning
@@ -251,13 +255,16 @@ When accessibility issues are found, you get detailed, actionable errors:
 
 ## 📚 Documentation
 
-### Online Documentation
+### 🌐 Online Documentation
 
-📖 **[View Full Documentation on GitHub Pages](https://rayraycodes.github.io/rails-accessibility-testing/)** - Complete documentation site with all guides and examples
+**📖 [View Full Documentation on GitHub Pages](https://rayraycodes.github.io/rails-accessibility-testing/)**
+
+Complete documentation site with all guides, examples, and API reference. The documentation is automatically deployed from this repository.
 
 > **Note:** 
-> - **Correct URL:** `https://YOUR_USERNAME.github.io/rails-accessibility-testing/`
-> - If the link doesn't work or shows `/site/` in the path, GitHub Pages may need to be enabled or configured. See [ENABLE_GITHUB_PAGES.md](ENABLE_GITHUB_PAGES.md) for setup instructions.
+> - **Documentation URL:** `https://rayraycodes.github.io/rails-accessibility-testing/`
+> - If the link doesn't work, GitHub Pages may need to be enabled. See [ENABLE_GITHUB_PAGES.md](ENABLE_GITHUB_PAGES.md) for setup instructions.
+> - To add this link to your GitHub repository page, see [GITHUB_REPO_SETUP.md](GITHUB_REPO_SETUP.md)
 
 ### Guides
 
