@@ -1,0 +1,44 @@
+name: Check GitHub Pages Setup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run once a day to check if Pages is enabled
+    - cron: '0 0 * * *'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if GitHub Pages is enabled
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const { data } = await github.rest.repos.getPages({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              if (data.source.branch && data.source.branch !== 'gh-pages') {
+                console.log('✅ GitHub Pages is enabled');
+                console.log(`   Source: ${data.source.branch}`);
+                console.log(`   URL: ${data.html_url}`);
+              } else {
+                console.log('⚠️  GitHub Pages is enabled but may not be using GitHub Actions');
+                console.log('   Please check Settings → Pages → Source');
+              }
+            } catch (error) {
+              if (error.status === 404) {
+                console.log('❌ GitHub Pages is not enabled');
+                console.log('');
+                console.log('To enable:');
+                console.log('1. Go to repository Settings → Pages');
+                console.log('2. Under "Source", select "GitHub Actions"');
+                console.log('3. Save');
+                console.log('4. Re-run the "Deploy Documentation to GitHub Pages" workflow');
+              } else {
+                throw error;
+              }
+            }
+

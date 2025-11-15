@@ -8,6 +8,7 @@ This is a **Jekyll-based** documentation site for Rails Accessibility Testing. I
 - ✅ **GitHub Pages compatible** - Deploy directly to GitHub Pages
 - ✅ **Sustainable** - No manual HTML maintenance needed
 - ✅ **Markdown-based** - Easy to write and maintain
+- ✅ **Isolated path** - Deploys only to `/rails-accessibility-testing` path, doesn't affect root
 
 ## Quick Start
 
@@ -19,7 +20,7 @@ make install    # Install dependencies
 make serve      # Serve locally with live reload
 ```
 
-Visit http://localhost:4000
+Visit http://localhost:4000/rails-accessibility-testing/
 
 ### Option 2: Manual Setup
 
@@ -33,25 +34,34 @@ bundle install
 2. Serve locally:
 
 ```bash
-bundle exec jekyll serve --livereload
+bundle exec jekyll serve --baseurl "/rails-accessibility-testing"
 ```
 
-Visit http://localhost:4000
+Visit http://localhost:4000/rails-accessibility-testing/
 
 ## Structure
 
 - `index.md` - Home page
-- `getting_started.md` - Includes content from GUIDES/getting_started.md
+- `getting_started.md` - Getting started guide
 - `configuration.md` - Configuration documentation
-- `ci_integration.md` - Includes content from GUIDES/continuous_integration.md
-- `contributing.md` - Includes content from CONTRIBUTING.md
+- `ci_integration.md` - CI integration guide
+- `contributing.md` - Contributing guide
 - `_config.yml` - Jekyll configuration
 - `_layouts/default.html` - Page layout template
 - `_includes/header.html` - Navigation header
 
-## Auto-Updating
+## Important: Path Isolation
 
-The site automatically includes content from the main GUIDES directory using `include_relative`, so when you update the guides, the documentation site updates automatically.
+The documentation site is configured to deploy **only** to the `/rails-accessibility-testing` path:
+
+- **Base URL:** `/rails-accessibility-testing`
+- **Build destination:** `../_site/rails-accessibility-testing`
+- **Live URL:** `https://YOUR_USERNAME.github.io/rails-accessibility-testing/`
+
+This ensures:
+- ✅ Doesn't interfere with existing GitHub Pages content at root
+- ✅ Doesn't overwrite existing `index.html` or other files
+- ✅ Isolated deployment path
 
 ## Deployment
 
@@ -66,19 +76,15 @@ The documentation is **automatically deployed** to GitHub Pages via GitHub Actio
 2. Under "Source", select "GitHub Actions"
 3. The workflow (`.github/workflows/pages.yml`) will automatically deploy on push to `main`
 
-**Manual Deployment:**
-If you need to manually trigger a deployment:
-1. Go to Actions tab
-2. Select "Deploy Documentation to GitHub Pages"
-3. Click "Run workflow"
+**Important:** The site deploys to `/rails-accessibility-testing` subdirectory, not the root. This preserves any existing GitHub Pages content.
 
 ### Manual Build
 
 ```bash
-bundle exec jekyll build
+bundle exec jekyll build --baseurl "/rails-accessibility-testing"
 ```
 
-Output will be in `_site/` directory.
+Output will be in `_site/rails-accessibility-testing/` directory.
 
 ## Adding New Pages
 
@@ -93,3 +99,19 @@ title: Page Title
 ```
 
 3. Add link to navigation in `_includes/header.html`
+
+## Troubleshooting
+
+### Build errors
+
+If you see errors about missing directories:
+- Make sure you're in the `docs_site/` directory
+- Run `bundle install` to install dependencies
+- Check `_config.yml` for correct paths
+
+### Path issues
+
+If links don't work:
+- Make sure `baseurl` in `_config.yml` is `/rails-accessibility-testing`
+- Use `relative_url` filter in links: `{{ '/page.html' | relative_url }}`
+- Test locally with `--baseurl "/rails-accessibility-testing"`

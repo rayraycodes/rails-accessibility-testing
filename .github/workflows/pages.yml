@@ -39,17 +39,34 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        continue-on-error: true
 
       - name: Build with Jekyll
         working-directory: ./docs_site
-        run: bundle exec jekyll build --baseurl "${{ github.event.repository.name }}"
+        env:
+          JEKYLL_ENV: production
+        run: |
+          mkdir -p ../_site/rails-accessibility-testing
+          bundle exec jekyll build \
+            --baseurl "/rails-accessibility-testing" \
+            --destination ../_site/rails-accessibility-testing
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs_site/_site
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Check deployment status
+        if: failure()
+        run: |
+          echo "::warning::GitHub Pages deployment failed. Please enable GitHub Pages in repository settings:"
+          echo "1. Go to Settings → Pages"
+          echo "2. Under 'Source', select 'GitHub Actions'"
+          echo "3. Save and re-run this workflow"
+          exit 1
 

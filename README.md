@@ -255,6 +255,8 @@ When accessibility issues are found, you get detailed, actionable errors:
 
 📖 **[View Full Documentation on GitHub Pages](https://rayraycodes.github.io/rails-accessibility-testing/)** - Complete documentation site with all guides and examples
 
+> **Note:** If the link doesn't work, GitHub Pages may need to be enabled. See [ENABLE_GITHUB_PAGES.md](ENABLE_GITHUB_PAGES.md) for setup instructions.
+
 ### Guides
 
 - **[Getting Started](GUIDES/getting_started.md)** - Quick start guide
