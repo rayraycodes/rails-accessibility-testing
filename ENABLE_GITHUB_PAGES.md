@@ -96,12 +96,23 @@ This ensures:
 - Test locally: `cd docs_site && bundle exec jekyll build --baseurl "/rails-accessibility-testing"`
 - Verify all required files exist
 
-### "404 Not Found"
+### "404 Not Found" or URL shows `/site/` in path
+
+**If you see `/site/` in the URL:**
+
+This usually means:
+1. **Repository name mismatch** - Check that repository is named `rails-accessibility-testing`
+2. **Pages source wrong** - Make sure Pages source is "GitHub Actions" not "Deploy from a branch"
+3. **Custom domain issue** - If custom domain is configured, it might affect paths
 
 **Solution:**
-- Wait 1-2 minutes (deployment takes time)
+- **Correct URL:** `https://YOUR_USERNAME.github.io/rails-accessibility-testing/`
+- **Wrong URL:** `https://YOUR_USERNAME.github.io/site/rails-accessibility-testing/`
+- Go to **Settings** → **Pages** → Verify source is "GitHub Actions"
+- Check repository name matches expected path
+- Wait 1-2 minutes after deployment
 - Visit `/rails-accessibility-testing/` not just root
-- Check `baseurl` in `_config.yml` matches repository name
+- Check workflow logs for "Deployment info" to see actual URL
 
 ### Check Pages Status
 

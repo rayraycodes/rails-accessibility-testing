@@ -36,4 +36,5 @@ exclude:
   - node_modules
   - vendor
   - README.md
+  - Makefile
 
