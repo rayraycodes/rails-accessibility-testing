@@ -45,6 +45,9 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "yard", "~> 0.9"
+  spec.add_development_dependency "rspec", "~> 3.12"
+  spec.add_development_dependency "capybara", "~> 3.0"
+  spec.add_development_dependency "selenium-webdriver", "~> 4.0"
   
   # Metadata for RubyGems
   spec.metadata["homepage_uri"] = spec.homepage
