@@ -29,6 +29,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Verify Pages source
+        run: |
+          echo "⚠️  If you see errors about 'jekyll-build-pages' or '/docs' directory:"
+          echo "   This means GitHub Pages source is NOT set to 'GitHub Actions'"
+          echo "   Go to Settings → Pages → Set source to 'GitHub Actions' (NOT 'Deploy from a branch')"
+          echo ""
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

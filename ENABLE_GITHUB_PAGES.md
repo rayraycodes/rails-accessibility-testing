@@ -9,7 +9,13 @@ Complete guide for setting up and deploying the documentation site to GitHub Pag
 1. Go to your repository on GitHub
 2. Click **Settings** → **Pages** (left sidebar)
 3. Under **"Source"**, select **"GitHub Actions"** (NOT "Deploy from a branch")
-4. Click **Save**
+4. **IMPORTANT:** Make sure "Deploy from a branch" is NOT selected
+5. Click **Save**
+
+**If you see errors about `jekyll-build-pages` or `/docs` directory:**
+- This means GitHub is trying to use the default Jekyll build
+- Make absolutely sure Pages source is set to "GitHub Actions" only
+- The `.nojekyll` file in the repo root prevents auto-detection
 
 ### Step 2: Deploy
 
