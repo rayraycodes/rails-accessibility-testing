@@ -1,0 +1,131 @@
+# frozen_string_literal: true
+
+require 'yaml'
+
+module RailsAccessibilityTesting
+  module Config
+    # Loads and parses the accessibility.yml configuration file
+    #
+    # Supports profiles (development, test, ci) and rule overrides.
+    #
+    # @example Configuration file structure
+    #   # config/accessibility.yml
+    #   wcag_level: AA
+    #   
+    #   development:
+    #     checks:
+    #       color_contrast: false  # Skip in dev for speed
+    #   
+    #   ci:
+    #     checks:
+    #       color_contrast: true   # Full checks in CI
+    #
+    # @api private
+    class YamlLoader
+      DEFAULT_CONFIG_PATH = 'config/accessibility.yml'
+      
+      class << self
+        # Load configuration from YAML file
+        # @param path [String] Path to config file
+        # @param profile [Symbol] Profile to use (:development, :test, :ci)
+        # @return [Hash] Configuration hash
+        def load(path: DEFAULT_CONFIG_PATH, profile: :test)
+          config_path = resolve_config_path(path)
+          return default_config unless config_path && File.exist?(config_path)
+          
+          yaml_content = File.read(config_path)
+          parsed = YAML.safe_load(yaml_content, permitted_classes: [Symbol], aliases: true) || {}
+          
+          merge_profile_config(parsed, profile)
+        rescue StandardError => e
+          RailsAccessibilityTesting.config.logger&.warn("Failed to load config: #{e.message}") if defined?(RailsAccessibilityTesting)
+          default_config
+        end
+        
+        private
+        
+        # Resolve config path relative to Rails root
+        def resolve_config_path(path)
+          return path if Pathname.new(path).absolute?
+          
+          if defined?(Rails) && Rails.root
+            Rails.root.join(path).to_s
+          else
+            path
+          end
+        end
+        
+        # Merge profile-specific config with base config
+        def merge_profile_config(parsed, profile)
+          base_config = parsed.reject { |k, _| k.to_s.match?(/^(development|test|ci)$/) }
+          profile_config = parsed[profile.to_s] || parsed[profile] || {}
+          
+          # Deep merge checks configuration
+          checks = base_config['checks'] || {}
+          profile_checks = profile_config['checks'] || {}
+          
+          merged_checks = checks.merge(profile_checks)
+          
+          base_config.merge(
+            'checks' => merged_checks,
+            'profile' => profile.to_s,
+            'ignored_rules' => parse_ignored_rules(parsed, profile)
+          )
+        end
+        
+        # Parse ignored rules with comments
+        def parse_ignored_rules(parsed, profile)
+          ignored = []
+          
+          # Check base config
+          ignored.concat(parse_rule_overrides(parsed['ignored_rules'] || []))
+          
+          # Check profile-specific ignored rules
+          profile_config = parsed[profile.to_s] || parsed[profile] || {}
+          ignored.concat(parse_rule_overrides(profile_config['ignored_rules'] || []))
+          
+          ignored.uniq
+        end
+        
+        # Parse rule override entries
+        def parse_rule_overrides(overrides)
+          overrides.map do |override|
+            {
+              rule: override['rule'] || override[:rule],
+              reason: override['reason'] || override[:reason] || 'No reason provided',
+              comment: override['comment'] || override[:comment]
+            }
+          end.compact
+        end
+        
+        # Default configuration when no file exists
+        def default_config
+          {
+            'wcag_level' => 'AA',
+            'checks' => default_checks,
+            'ignored_rules' => [],
+            'profile' => 'test'
+          }
+        end
+        
+        # Default check configuration (all enabled)
+        def default_checks
+          {
+            'form_labels' => true,
+            'image_alt_text' => true,
+            'interactive_elements' => true,
+            'heading_hierarchy' => true,
+            'keyboard_accessibility' => true,
+            'aria_landmarks' => true,
+            'form_errors' => true,
+            'table_structure' => true,
+            'duplicate_ids' => true,
+            'skip_links' => true,
+            'color_contrast' => false  # Disabled by default (expensive)
+          }
+        end
+      end
+    end
+  end
+end
+

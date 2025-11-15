@@ -1,0 +1,35 @@
+name: Preview Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'docs_site/**'
+      - 'GUIDES/**'
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+          working-directory: ./docs_site
+
+      - name: Build Jekyll site
+        working-directory: ./docs_site
+        run: bundle exec jekyll build
+
+      - name: Check for build errors
+        working-directory: ./docs_site
+        run: |
+          if [ ! -d "_site" ]; then
+            echo "❌ Build failed - _site directory not found"
+            exit 1
+          fi
+          echo "✅ Build successful"
+

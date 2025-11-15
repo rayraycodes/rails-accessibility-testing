@@ -50,6 +50,31 @@ require_relative 'rails_accessibility_testing/accessibility_helper'
 require_relative 'rails_accessibility_testing/shared_examples'
 require_relative 'rails_accessibility_testing/rspec_integration'
 
+# Load engine components
+require_relative 'rails_accessibility_testing/engine/violation'
+require_relative 'rails_accessibility_testing/engine/violation_collector'
+require_relative 'rails_accessibility_testing/engine/rule_engine'
+
+# Load check definitions
+require_relative 'rails_accessibility_testing/checks/base_check'
+require_relative 'rails_accessibility_testing/checks/form_labels_check'
+require_relative 'rails_accessibility_testing/checks/image_alt_text_check'
+require_relative 'rails_accessibility_testing/checks/interactive_elements_check'
+require_relative 'rails_accessibility_testing/checks/heading_hierarchy_check'
+require_relative 'rails_accessibility_testing/checks/keyboard_accessibility_check'
+require_relative 'rails_accessibility_testing/checks/aria_landmarks_check'
+require_relative 'rails_accessibility_testing/checks/form_errors_check'
+require_relative 'rails_accessibility_testing/checks/table_structure_check'
+require_relative 'rails_accessibility_testing/checks/duplicate_ids_check'
+require_relative 'rails_accessibility_testing/checks/skip_links_check'
+require_relative 'rails_accessibility_testing/checks/color_contrast_check'
+
+# Load configuration
+require_relative 'rails_accessibility_testing/config/yaml_loader'
+
+# Load integrations
+require_relative 'rails_accessibility_testing/integration/minitest_integration'
+
 # Auto-configure when RSpec is available
 if defined?(RSpec)
   RSpec.configure do |config|

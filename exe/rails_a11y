@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Load the gem
+require_relative '../lib/rails_accessibility_testing'
+
+# Load CLI command
+require_relative '../lib/rails_accessibility_testing/cli/command'
+
+# Run the CLI
+RailsAccessibilityTesting::CLI::Command.run(ARGV)
+

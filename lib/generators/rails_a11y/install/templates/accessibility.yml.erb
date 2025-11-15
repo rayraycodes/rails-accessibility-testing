@@ -1,0 +1,49 @@
+# Rails A11y Configuration
+#
+# This file configures accessibility checks for your Rails application.
+# See https://github.com/your-org/rails-a11y for full documentation.
+
+# WCAG compliance level (A, AA, AAA)
+wcag_level: AA
+
+# Global check configuration
+# Set to false to disable a check globally
+checks:
+  form_labels: true
+  image_alt_text: true
+  interactive_elements: true
+  heading_hierarchy: true
+  keyboard_accessibility: true
+  aria_landmarks: true
+  form_errors: true
+  table_structure: true
+  duplicate_ids: true
+  skip_links: true
+  color_contrast: false  # Disabled by default (requires JS evaluation)
+
+# Profile-specific configurations
+# Override global settings for different environments
+
+development:
+  checks:
+    color_contrast: false  # Skip in dev for speed
+    # Add other dev-specific overrides here
+
+test:
+  checks:
+    # Test environment uses global settings by default
+    # Add test-specific overrides here
+
+ci:
+  checks:
+    color_contrast: true   # Full checks in CI
+    # Add CI-specific overrides here
+
+# Ignored rules with reasons
+# Use this to temporarily ignore specific rules while fixing issues
+# Always include a reason and plan to fix
+ignored_rules:
+  # - rule: form_labels
+  #   reason: "Legacy form, scheduled for refactor in Q2"
+  #   comment: "Will be fixed in PR #123"
+

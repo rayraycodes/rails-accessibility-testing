@@ -1,0 +1,39 @@
+# Jekyll Configuration for Rails Accessibility Testing Docs
+title: Rails Accessibility Testing
+description: The RSpec + RuboCop of accessibility for Rails
+url: https://rayraycodes.github.io
+baseurl: /rails-accessibility-testing
+
+# GitHub Pages settings
+github: [metadata]
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-relative-links
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Getting Started
+    url: /getting_started.html
+  - title: Configuration
+    url: /configuration.html
+  - title: CI Integration
+    url: /ci_integration.html
+  - title: Contributing
+    url: /contributing.html
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - README.md
+
