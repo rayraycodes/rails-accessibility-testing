@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2024-11-15
+
+### Added
+- GitHub Pages documentation site with Jekyll
+- Comprehensive GitHub Actions workflow for automatic documentation deployment
+- Enhanced workflow diagnostics and verification steps
+- Test step to verify index.html exists before deployment
+- Improved error messages and troubleshooting guides
+- Token support for GitHub Pages deployment (OIDC with PAT fallback)
+
+### Improved
+- Better artifact structure verification in CI/CD
+- Enhanced deployment diagnostics
+- More detailed build output and verification steps
+- Improved documentation structure and organization
+
+### Fixed
+- Jekyll build configuration and dependencies
+- GitHub Pages deployment path isolation
+- Artifact structure for subdirectory deployment
+
 ## [1.0.0] - 2024-11-14
 
 ### Added
@@ -55,5 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.1.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.0.0
 

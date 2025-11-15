@@ -9,7 +9,6 @@ _site/
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
-.jekyll-cache/
 
 # Dependencies
 vendor/

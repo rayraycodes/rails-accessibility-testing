@@ -2,7 +2,8 @@
 title: Rails Accessibility Testing
 description: The RSpec + RuboCop of accessibility for Rails
 url: https://rayraycodes.github.io
-baseurl: /rails-accessibility-testing
+# baseurl will be set dynamically by workflow
+baseurl: ""
 
 # GitHub Pages settings
 github: [metadata]
