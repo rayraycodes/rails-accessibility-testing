@@ -54,8 +54,11 @@ require 'rails_helper'
 RSpec.describe 'Home Page Accessibility', type: :system do
   it 'loads the page and runs comprehensive accessibility checks' do
     visit root_path
-    # ✅ Comprehensive accessibility checks run automatically!
-    # The test will fail if any accessibility issues are found
+    
+    # Run comprehensive accessibility checks
+    # This will fail the test if any accessibility issues are found
+    check_comprehensive_accessibility
+    # ✅ If all checks pass, you'll see: "All comprehensive accessibility checks passed! (11 checks)"
   end
 end
 ```
