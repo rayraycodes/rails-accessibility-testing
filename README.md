@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.2.0
+**Current Version:** 1.3.0
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -84,13 +84,45 @@ RailsAccessibilityTesting::Integration::MinitestIntegration.setup!
 
 ## 📖 Usage
 
+### System Specs (Recommended)
+
+**System specs are the recommended and most reliable way to run accessibility checks.** They're faster, more reliable, and integrate seamlessly with your test suite.
+
+Create system specs for your pages:
+
+```ruby
+# spec/system/home_page_accessibility_spec.rb
+require 'rails_helper'
+
+RSpec.describe 'Home Page Accessibility', type: :system do
+  it 'loads successfully and passes comprehensive accessibility checks' do
+    visit root_path
+    expect(page).to have_content('Biorepository').or have_content('Welcome')
+    
+    # Run comprehensive accessibility checks
+    check_comprehensive_accessibility
+    # ✅ Comprehensive accessibility checks (11 checks) also run automatically after this test!
+  end
+end
+```
+
+**Accessibility checks run automatically after each `visit` in system specs!**
+
+For continuous testing during development, add to your `Procfile.dev`:
+
+```ruby
+a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
+```
+
+📖 **[See the full System Specs Guide](GUIDES/system_specs_for_accessibility.md)** for detailed examples and best practices.
+
 ### Automatic Checks
 
 Just write your specs normally - checks run automatically:
 
 ```ruby
 # spec/system/home_page_spec.rb
-RSpec.describe "Home Page" do
+RSpec.describe "Home Page", type: :system do
   it "displays welcome message" do
     visit root_path
     expect(page).to have_content("Welcome")
@@ -270,6 +302,7 @@ Complete documentation site with all guides, examples, and API reference. The do
 
 ### Guides
 
+- **[System Specs for Accessibility](GUIDES/system_specs_for_accessibility.md)** - ⭐ **Recommended approach** - Using system specs for reliable accessibility testing
 - **[Getting Started](GUIDES/getting_started.md)** - Quick start guide
 - **[Continuous Integration](GUIDES/continuous_integration.md)** - CI/CD setup
 - **[Writing Accessible Views](GUIDES/writing_accessible_views_in_rails.md)** - Best practices
