@@ -4,7 +4,7 @@ require_relative "lib/rails_accessibility_testing/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "rails_accessibility_testing"
-  spec.version       = RailsAccessibilityTesting::VERSION
+  spec.version       = RailsAccessibilityTesting::V   
   spec.authors       = ["Regan Maharjan"]
   spec.email         = ["imregan@umich.edu"]
 
