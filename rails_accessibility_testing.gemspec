@@ -31,7 +31,8 @@ Gem::Specification.new do |spec|
   
   spec.require_paths = ["lib"]
   
-  # Add executables
+  # Add executables (they're in exe/ directory)
+  spec.bindir = "exe"
   spec.executables = ["rails_a11y", "rails_server_safe"]
 
   # Runtime dependencies

@@ -28,3 +28,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Built gem files
+*.gem
