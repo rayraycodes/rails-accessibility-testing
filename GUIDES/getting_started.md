@@ -40,13 +40,38 @@ This creates:
 
 ### Step 3: Run Your Tests
 
-That's it! Just run your system specs:
+You can run accessibility checks in several ways:
+
+#### Option A: Run Tests Manually
 
 ```bash
 bundle exec rspec spec/system/
 ```
 
 Accessibility checks run automatically on every system test that visits a page.
+
+#### Option B: Run Continuously with Procfile (Recommended for Development)
+
+For continuous accessibility checking during development, add to your `Procfile.dev`:
+
+```procfile
+web: bin/rails server
+css: bin/rails dartsass:watch
+a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
+```
+
+Then run:
+
+```bash
+bin/dev
+```
+
+This will:
+- Start your Rails server
+- Watch for CSS changes
+- **Automatically run accessibility checks every 30 seconds** on all `*_accessibility_spec.rb` files
+
+The accessibility checker will continuously monitor your pages and alert you to any issues as you develop!
 
 ## Your First Accessibility Check
 

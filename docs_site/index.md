@@ -7,7 +7,7 @@ title: Home
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Version:** 1.4.1
+**Version:** 1.4.2
 
 Rails Accessibility Testing is a comprehensive accessibility testing gem that makes accessibility testing as natural as unit testing. It integrates seamlessly into your Rails workflow, catching WCAG 2.1 AA violations as you code—not after deployment.
 

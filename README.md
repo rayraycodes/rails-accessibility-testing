@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.4.1
+**Current Version:** 1.4.2
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -108,11 +108,23 @@ end
 
 **Accessibility checks run automatically after each `visit` in system specs!**
 
-For continuous testing during development, add to your `Procfile.dev`:
+#### Continuous Testing with Procfile (Recommended for Development)
 
-```ruby
+For continuous accessibility checking during development, add to your `Procfile.dev`:
+
+```procfile
+web: bin/rails server
+css: bin/rails dartsass:watch
 a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
 ```
+
+Then run:
+
+```bash
+bin/dev
+```
+
+This will automatically run accessibility checks every 30 seconds on all `*_accessibility_spec.rb` files, giving you continuous feedback as you develop!
 
 📖 **[See the full System Specs Guide](GUIDES/system_specs_for_accessibility.md)** for detailed examples and best practices.
 
