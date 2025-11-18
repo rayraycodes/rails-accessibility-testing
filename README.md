@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.1.0
+**Current Version:** 1.2.0
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -40,6 +40,8 @@ Add to your `Gemfile`:
 group :development, :test do
   gem 'rails_accessibility_testing'
   gem 'axe-core-capybara', '~> 4.0'
+  # Your existing Capybara, selenium-webdriver, webdrivers gems
+  # The gem has minimal dependencies - you control your own driver setup
 end
 ```
 
@@ -301,8 +303,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 - Ruby 3.0+ (3.1+ recommended)
 - Rails 6.0+ (7.1+ recommended)
 - RSpec Rails 6.0+ (for RSpec) or Minitest (for Minitest)
-- Capybara 3.0+
+- Capybara 3.0+ (provided by your project)
+- selenium-webdriver 4.0+ (provided by your project, for system specs)
+- webdrivers (optional, provided by your project, for automatic driver management)
 - Chrome/Chromium browser
+
+**Note:** As of version 1.2.0, the gem has minimal dependencies. You provide and configure Capybara, selenium-webdriver, and webdrivers in your own Gemfile, giving you full control over your test driver setup.
 
 ## 🤝 Contributing
 
