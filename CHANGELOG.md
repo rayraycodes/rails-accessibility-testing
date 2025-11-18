@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2024-12-XX
+
+### Changed
+- **BREAKING**: Removed unnecessary dependencies (selenium-webdriver, capybara from gemspec)
+- Gem now has minimal dependencies - only requires `axe-core-capybara`
+- Users provide their own capybara, selenium-webdriver, webdrivers in their Gemfile
+- This allows users to control their own driver configuration for RSpec system specs
+- CLI tool still works but requires users to have selenium-webdriver in their Gemfile if they want to use it
+
+## [1.1.6] - 2024-12-XX
+
+### Fixed
+- Added server readiness check with retry mechanism to prevent connection refused errors
+- CLI tool now waits up to 20 seconds for Rails server to be ready before attempting accessibility checks
+- Prevents race conditions when running in Procfile.dev where a11y process starts before web server
+
+## [1.1.5] - 2024-12-XX
+
+### Fixed
+- Fixed CLI tool "invalid argument" error when visiting paths by automatically converting paths to full URLs
+- CLI tool now properly constructs `http://localhost:PORT/path` URLs when using Selenium with Rails apps
+- Respects PORT, RAILS_PORT, and RAILS_URL environment variables for server URL configuration
+
+## [1.1.4] - 2024-12-XX
+
+### Fixed
+- Fixed CLI tool chromedriver discovery issue by automatically requiring webdrivers gem when available
+- CLI tool now works properly with projects that use webdrivers for driver management
+
+## [1.1.3] - 2024-12-XX
+
+### Fixed
+- Fixed CLI tool (`rails_a11y`) failing when RSpec is not available by conditionally loading RSpec-specific components
+- CLI tool can now run independently without requiring RSpec to be loaded
+
 ## [1.1.0] - 2024-11-15
 
 ### Added
@@ -76,6 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.2.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.2.0
+[1.1.6]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.6
+[1.1.5]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.5
+[1.1.4]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.4
+[1.1.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.3
 [1.1.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.0.0
 

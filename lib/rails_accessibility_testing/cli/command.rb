@@ -110,9 +110,17 @@ module RailsAccessibilityTesting
         require 'capybara/dsl'
         require 'selenium-webdriver'
         
+        # Try to require webdrivers for automatic chromedriver management
+        begin
+          require 'webdrivers'
+        rescue LoadError
+          # webdrivers gem not available, selenium-webdriver will try to manage drivers
+        end
+        
         # Setup Capybara
         Capybara.default_driver = :selenium_chrome_headless
-        Capybara.app = Rails.application if defined?(Rails)
+        # Don't set Capybara.app when using Selenium - it needs a real HTTP server
+        # The Rails server should be running separately (e.g., via Procfile.dev)
         
         engine = Engine::RuleEngine.new(config: config)
         all_violations = []
@@ -123,10 +131,16 @@ module RailsAccessibilityTesting
         
         targets.each do |target|
           begin
-            Capybara.visit(target)
-            violations = engine.check(Capybara.current_session, context: { url: target })
+            # Convert path to full URL if needed (when using Selenium with Rails)
+            url = normalize_url(target)
+            
+            # Wait for server to be ready (with retries)
+            wait_for_server(url) if url.match?(/\Ahttps?:\/\//)
+            
+            Capybara.visit(url)
+            violations = engine.check(Capybara.current_session, context: { url: url })
             all_violations.concat(violations)
-            checked_urls << { url: target, violations: violations.count }
+            checked_urls << { url: url, violations: violations.count }
           rescue StandardError => e
             $stderr.puts "Error checking #{target}: #{e.message}"
           end
@@ -159,6 +173,48 @@ module RailsAccessibilityTesting
         end
         
         targets.uniq
+      end
+      
+      def normalize_url(target)
+        # If it's already a full URL, return as-is
+        return target if target.match?(/\Ahttps?:\/\//)
+        
+        # If it's a path and we're using Selenium, construct a full URL
+        # Default to localhost:3000 (standard Rails port)
+        port = ENV['PORT'] || ENV['RAILS_PORT'] || '3000'
+        base_url = ENV['RAILS_URL'] || "http://localhost:#{port}"
+        
+        # Ensure path starts with /
+        path = target.start_with?('/') ? target : "/#{target}"
+        "#{base_url}#{path}"
+      end
+      
+      def wait_for_server(url, max_retries: 10, retry_delay: 2)
+        require 'net/http'
+        require 'uri'
+        
+        uri = URI.parse(url)
+        base_url = "#{uri.scheme}://#{uri.host}:#{uri.port}"
+        
+        max_retries.times do |attempt|
+          begin
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.open_timeout = 1
+            http.read_timeout = 1
+            response = http.head('/')
+            return if response.code.to_i < 500 # Server is responding
+          rescue Errno::ECONNREFUSED, Errno::ETIMEDOUT, Net::OpenTimeout, Net::ReadTimeout, SocketError
+            # Server not ready yet
+            if attempt < max_retries - 1
+              sleep(retry_delay)
+              next
+            else
+              # Last attempt failed, but we'll still try to visit (might be a different error)
+              $stderr.puts "Warning: Server at #{base_url} not responding after #{max_retries} attempts, attempting anyway..."
+              return
+            end
+          end
+        end
       end
       
       def resolve_routes(routes)

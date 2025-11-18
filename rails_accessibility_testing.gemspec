@@ -4,7 +4,7 @@ require_relative "lib/rails_accessibility_testing/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "rails_accessibility_testing"
-  spec.version       = RailsAccessibilityTesting::V   
+  spec.version       = RailsAccessibilityTesting::VERSION   
   spec.authors       = ["Regan Maharjan"]
   spec.email         = ["imregan@umich.edu"]
 
@@ -36,19 +36,18 @@ Gem::Specification.new do |spec|
   spec.executables = ["rails_a11y", "rails_server_safe"]
 
   # Runtime dependencies
+  # Only essential dependencies for RSpec system specs
   spec.add_dependency "axe-core-capybara", "~> 4.0"
-  spec.add_dependency "capybara", "~> 3.0"
   
-  # Optional dependencies (users can choose RSpec or Minitest)
-  # spec.add_dependency "rspec-rails", ">= 6.0"  # Optional - user provides
+  # Optional dependencies (users provide these in their own Gemfile)
+  # - rspec-rails (for RSpec integration)
+  # - capybara (for system specs - users configure their own drivers)
+  # - selenium-webdriver (only needed if using CLI tool, which users can opt into)
 
   # Development dependencies
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
-  spec.add_development_dependency "yard", "~> 0.9"
   spec.add_development_dependency "rspec", "~> 3.12"
-  spec.add_development_dependency "capybara", "~> 3.0"
-  spec.add_development_dependency "selenium-webdriver", "~> 4.0"
   
   # Metadata for RubyGems
   spec.metadata["homepage_uri"] = spec.homepage
