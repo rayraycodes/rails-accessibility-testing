@@ -38,7 +38,7 @@ begin
   require_relative 'rails_accessibility_testing/version'
 rescue LoadError
   module RailsAccessibilityTesting
-    VERSION = '1.1.0'
+    VERSION = '1.3.0'
   end
 end
 

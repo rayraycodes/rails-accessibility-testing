@@ -38,7 +38,9 @@ module RailsAccessibilityTesting
             @violation_collector.add(violations) if violations.any?
           rescue StandardError => e
             # Log but don't fail - one check error shouldn't stop others
-            RailsAccessibilityTesting.config.logger&.error("Check #{check_class.rule_name} failed: #{e.message}") if defined?(RailsAccessibilityTesting)
+            if defined?(RailsAccessibilityTesting) && RailsAccessibilityTesting.config.respond_to?(:logger) && RailsAccessibilityTesting.config.logger
+              RailsAccessibilityTesting.config.logger.error("Check #{check_class.rule_name} failed: #{e.message}")
+            end
           end
         end
         

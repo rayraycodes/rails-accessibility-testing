@@ -38,7 +38,9 @@ module RailsAccessibilityTesting
           
           merge_profile_config(parsed, profile)
         rescue StandardError => e
-          RailsAccessibilityTesting.config.logger&.warn("Failed to load config: #{e.message}") if defined?(RailsAccessibilityTesting)
+          if defined?(RailsAccessibilityTesting) && RailsAccessibilityTesting.config.respond_to?(:logger) && RailsAccessibilityTesting.config.logger
+            RailsAccessibilityTesting.config.logger.warn("Failed to load config: #{e.message}")
+          end
           default_config
         end
         

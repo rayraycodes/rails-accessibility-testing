@@ -83,6 +83,9 @@ module AccessibilityHelper
     # If we collected any errors and this was called directly (not from comprehensive), raise them
     if @accessibility_errors.any? && !@in_comprehensive_check
       raise format_all_errors(@accessibility_errors)
+    elsif @accessibility_errors.empty? && !@in_comprehensive_check
+      # Show success message when all checks pass
+      puts "\n✅ All basic accessibility checks passed! (5 checks: form labels, images, interactive elements, headings, keyboard)"
     end
   end
 
@@ -103,6 +106,9 @@ module AccessibilityHelper
     # If we collected any errors, raise them all together
     if @accessibility_errors.any?
       raise format_all_errors(@accessibility_errors)
+    else
+      # Show success message when all checks pass
+      puts "\n✅ All comprehensive accessibility checks passed! (11 checks: form labels, images, interactive elements, headings, keyboard, ARIA landmarks, form errors, table structure, duplicate IDs, skip links, color contrast)"
     end
   end
 

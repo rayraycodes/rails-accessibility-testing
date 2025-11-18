@@ -53,7 +53,7 @@ module RailsAccessibilityTesting
       
       def parse_options(argv)
         options = {
-          profile: :test,
+          profile: :development,  # Use development profile by default (faster, no color contrast)
           format: :human,
           output: nil,
           debug: false
@@ -135,12 +135,44 @@ module RailsAccessibilityTesting
             url = normalize_url(target)
             
             # Wait for server to be ready (with retries)
-            wait_for_server(url) if url.match?(/\Ahttps?:\/\//)
+            # If wait fails, try to re-detect port and update URL
+            if url.match?(/\Ahttps?:\/\//)
+              # First, try to detect the port (might not be ready yet)
+              uri = URI.parse(url)
+              detected_port = detect_server_port
+              
+              # If we detected a different port, update the URL
+              if detected_port != uri.port.to_s
+                url = "#{uri.scheme}://#{uri.host}:#{detected_port}#{uri.path}"
+              end
+              
+              # Now wait for server to be ready
+              server_ready = wait_for_server(url, max_retries: 20, retry_delay: 1)
+              
+              # If still not ready, try re-detecting port one more time
+              unless server_ready
+                new_port = detect_server_port
+                if new_port != uri.port.to_s
+                  url = "#{uri.scheme}://#{uri.host}:#{new_port}#{uri.path}"
+                  server_ready = wait_for_server(url, max_retries: 20, retry_delay: 1)
+                end
+                
+                # If still not ready, skip this check and try next time
+                unless server_ready
+                  # Server still starting - this is normal, will retry automatically
+                  $stderr.puts "Waiting for server to start... (will retry automatically)"
+                  next
+                end
+              end
+            end
             
             Capybara.visit(url)
             violations = engine.check(Capybara.current_session, context: { url: url })
             all_violations.concat(violations)
             checked_urls << { url: url, violations: violations.count }
+          rescue Interrupt
+            # Handle interrupt gracefully - exit the loop
+            break
           rescue StandardError => e
             $stderr.puts "Error checking #{target}: #{e.message}"
           end
@@ -180,8 +212,8 @@ module RailsAccessibilityTesting
         return target if target.match?(/\Ahttps?:\/\//)
         
         # If it's a path and we're using Selenium, construct a full URL
-        # Default to localhost:3000 (standard Rails port)
-        port = ENV['PORT'] || ENV['RAILS_PORT'] || '3000'
+        # Try to detect the actual port, or use environment variables, or default to 3000
+        port = detect_server_port
         base_url = ENV['RAILS_URL'] || "http://localhost:#{port}"
         
         # Ensure path starts with /
@@ -189,7 +221,42 @@ module RailsAccessibilityTesting
         "#{base_url}#{path}"
       end
       
-      def wait_for_server(url, max_retries: 10, retry_delay: 2)
+      def detect_server_port
+        # Check environment variables first
+        return ENV['PORT'] if ENV['PORT']
+        return ENV['RAILS_PORT'] if ENV['RAILS_PORT']
+        
+        # Try to detect port from Rails server - check common Rails ports
+        # Check in order: 3000 (most common), then others
+        # Prioritize 3000 first as it's the Rails default
+        common_ports = [3000, 3001, 4000, 5000]
+        
+        common_ports.each do |port|
+          begin
+            require 'net/http'
+            http = Net::HTTP.new('localhost', port)
+            http.open_timeout = 1
+            http.read_timeout = 1
+            # Try to get a response - check if it looks like a Rails server
+            response = http.head('/')
+            # Accept 2xx, 3xx, or 4xx responses (server is responding)
+            # Reject 5xx as it might be a proxy or error
+            if response.code.to_i < 500
+              # Additional check: Rails servers usually have certain headers
+              # But for now, any HTTP response on these common ports is likely Rails
+              return port.to_s
+            end
+          rescue Errno::ECONNREFUSED, Net::OpenTimeout, Net::ReadTimeout, SocketError, Interrupt, Errno::EHOSTUNREACH, Errno::ETIMEDOUT
+            # Port not available or interrupted, try next
+            next
+          end
+        end
+        
+        # Default to 3000 if nothing found
+        '3000'
+      end
+      
+      def wait_for_server(url, max_retries: 15, retry_delay: 1)
         require 'net/http'
         require 'uri'
         
@@ -199,22 +266,31 @@ module RailsAccessibilityTesting
         max_retries.times do |attempt|
           begin
             http = Net::HTTP.new(uri.host, uri.port)
-            http.open_timeout = 1
-            http.read_timeout = 1
+            http.open_timeout = 2
+            http.read_timeout = 2
             response = http.head('/')
-            return if response.code.to_i < 500 # Server is responding
-          rescue Errno::ECONNREFUSED, Errno::ETIMEDOUT, Net::OpenTimeout, Net::ReadTimeout, SocketError
+            return true if response.code.to_i < 500 # Server is responding
+          rescue Errno::ECONNREFUSED, Errno::ETIMEDOUT, Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::EHOSTUNREACH
             # Server not ready yet
             if attempt < max_retries - 1
-              sleep(retry_delay)
+              begin
+                sleep(retry_delay)
+              rescue Interrupt
+                # Handle interrupt gracefully - return false to indicate failure
+                return false
+              end
               next
             else
-              # Last attempt failed, but we'll still try to visit (might be a different error)
-              $stderr.puts "Warning: Server at #{base_url} not responding after #{max_retries} attempts, attempting anyway..."
-              return
+              # Last attempt failed
+              return false
             end
+          rescue Interrupt
+            # Handle interrupt gracefully
+            return false
           end
         end
+        
+        false
       end
       
       def resolve_routes(routes)
@@ -230,6 +306,11 @@ module RailsAccessibilityTesting
       end
       
       def generate_report(results, options)
+        # Don't generate report if no URLs were checked (server not ready)
+        if results[:summary][:urls_checked] == 0
+          return
+        end
+        
         output = case options[:format]
                  when :json
                    generate_json_report(results)
@@ -262,11 +343,14 @@ module RailsAccessibilityTesting
           output << ""
           
           results[:violations].each_with_index do |violation, index|
-            output << "#{index + 1}. #{violation.message}"
-            output << "   Rule: #{violation.rule_name}"
-            output << "   URL: #{violation.page_context[:url]}"
-            output << "   View: #{violation.page_context[:view_file]}" if violation.page_context[:view_file]
-            output << ""
+            # Use ErrorMessageBuilder for detailed formatted messages
+            detailed_message = ErrorMessageBuilder.build(
+              error_type: violation.message,
+              element_context: violation.element_context || {},
+              page_context: violation.page_context || {}
+            )
+            output << detailed_message
+            output << "" if index < results[:violations].count - 1  # Add spacing between violations
           end
         else
           output << "✅ No accessibility violations found!"
@@ -300,7 +384,8 @@ module RailsAccessibilityTesting
             -v, --version                 Show version
           
           Examples:
-            rails_a11y check /home /about
+            rails_a11y /home /about
+            rails_a11y /
             rails_a11y --urls https://example.com
             rails_a11y --routes home_path about_path --format json --output report.json
         HELP

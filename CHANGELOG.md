@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-12-XX
+
+### Added
+- CLI reports now use ErrorMessageBuilder for detailed, formatted error messages
+- CLI reports include comprehensive remediation steps, element details, and WCAG references
+- Better empty alt text detection (checks both Capybara attributes and JavaScript getAttribute)
+- Improved server port detection with better error handling and timeout management
+
+### Changed
+- CLI default profile changed to `:development` for faster checks (color contrast disabled by default)
+- Improved server wait logic with longer retry times (up to 20 seconds) and better port re-detection
+- Report generation now skips when no URLs are checked (cleaner output when server isn't ready)
+- Port detection now prioritizes common Rails ports (3000, 3001, 4000, 5000) and excludes problematic ports
+
+### Fixed
+- Fixed logger accessor compatibility issue - logger access is now optional to work with older gem versions
+- Fixed CLI connection issues by improving port detection and server readiness checks
+- Fixed CLI showing empty reports when server isn't ready - now shows informative message instead
+- Improved error handling for connection timeouts and connection refused errors
+- Better handling of interrupt signals during server wait operations
+
+### Improved
+- CLI error messages are now more detailed and actionable with specific remediation steps
+- Server detection is more reliable with improved timeout handling and error recovery
+- Better user experience when running in Procfile.dev with automatic retries
+
 ## [1.2.0] - 2024-12-XX
 
 ### Changed
@@ -111,6 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.3.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.3.0
 [1.2.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.2.0
 [1.1.6]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.6
 [1.1.5]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.1.5
