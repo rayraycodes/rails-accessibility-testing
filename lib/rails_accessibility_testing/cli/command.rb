@@ -106,6 +106,9 @@ module RailsAccessibilityTesting
       end
       
       def run_checks(options, config)
+        # Reset wait attempts counter for each run
+        @wait_attempts = 0
+        
         require 'capybara'
         require 'capybara/dsl'
         require 'selenium-webdriver'
@@ -160,7 +163,12 @@ module RailsAccessibilityTesting
                 # If still not ready, skip this check and try next time
                 unless server_ready
                   # Server still starting - this is normal, will retry automatically
-                  $stderr.puts "Waiting for server to start... (will retry automatically)"
+                  # Only show message occasionally to avoid spam (every 3rd attempt)
+                  @wait_attempts ||= 0
+                  @wait_attempts += 1
+                  if @wait_attempts % 3 == 1
+                    $stderr.puts "Waiting for server to start... (will retry automatically)"
+                  end
                   next
                 end
               end
