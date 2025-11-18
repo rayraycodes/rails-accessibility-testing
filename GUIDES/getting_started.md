@@ -54,7 +54,7 @@ Let's see it in action. Create a simple system spec:
 
 ```ruby
 # spec/system/home_spec.rb
-RSpec.describe "Home Page" do
+RSpec.describe "Home Page", type: :system do
   it "displays the welcome message" do
     visit root_path
     expect(page).to have_content("Welcome")
@@ -62,6 +62,41 @@ RSpec.describe "Home Page" do
   end
 end
 ```
+
+## Running Comprehensive Checks Explicitly
+
+While checks run automatically after each `visit`, you can also run comprehensive checks explicitly at any point in your test:
+
+```ruby
+# spec/system/home_page_accessibility_spec.rb
+require 'rails_helper'
+
+RSpec.describe 'Home Page Accessibility', type: :system do
+  it 'loads the page and runs comprehensive accessibility checks' do
+    visit root_path
+    expect(page).to have_content('Welcome')
+    
+    # Run comprehensive accessibility checks explicitly
+    # This will fail the test if any accessibility issues are found
+    check_comprehensive_accessibility
+    # ✅ This runs all 11 comprehensive checks:
+    #    - Form labels, Image alt text, Interactive elements
+    #    - Heading hierarchy, Keyboard accessibility, ARIA landmarks
+    #    - Form errors, Table structure, Duplicate IDs
+    #    - Skip links, Color contrast (if enabled)
+    # If all checks pass, you'll see: "All comprehensive accessibility checks passed! (11 checks)"
+  end
+end
+```
+
+**When to use explicit checks:**
+- When you want to run checks at a specific point in your test (e.g., after filling a form)
+- When you want to ensure checks run even if the test might fail before the automatic check
+- When you want to test multiple pages in one spec and check each one explicitly
+
+**Note:** Even if you call `check_comprehensive_accessibility` explicitly, the automatic checks will still run after the test completes (unless the test fails before reaching the explicit check).
+
+### Example: Comprehensive Check Output
 
 If there are accessibility issues, you'll see detailed error messages like:
 
@@ -96,19 +131,33 @@ If there are accessibility issues, you'll see detailed error messages like:
 
 ## Understanding the Checks
 
-Rails A11y runs 11 comprehensive checks:
+Rails A11y runs **11 comprehensive checks** automatically. These checks are WCAG 2.1 AA aligned:
 
-1. **Form Labels** - All inputs have associated labels
-2. **Image Alt Text** - All images have alt attributes
-3. **Interactive Elements** - Buttons and links have accessible names
-4. **Heading Hierarchy** - Proper h1-h6 structure
+1. **Form Labels** - All form inputs have associated labels
+2. **Image Alt Text** - All images have descriptive alt attributes (including empty alt="" detection)
+3. **Interactive Elements** - Buttons, links, and other interactive elements have accessible names
+4. **Heading Hierarchy** - Proper h1-h6 structure without skipping levels
 5. **Keyboard Accessibility** - All interactive elements are keyboard accessible
-6. **ARIA Landmarks** - Proper use of ARIA landmark roles
-7. **Form Error Associations** - Errors linked to form fields
-8. **Table Structure** - Tables have proper headers
-9. **Duplicate IDs** - No duplicate ID attributes
-10. **Skip Links** - Skip navigation links present
-11. **Color Contrast** - Text meets contrast requirements (optional)
+6. **ARIA Landmarks** - Proper use of ARIA landmark roles for page structure
+7. **Form Error Associations** - Form errors are properly linked to their form fields
+8. **Table Structure** - Tables have proper headers and structure
+9. **Duplicate IDs** - No duplicate ID attributes on the page
+10. **Skip Links** - Skip navigation links are present for keyboard users
+11. **Color Contrast** - Text meets WCAG contrast requirements (optional, disabled by default for performance)
+
+### What `check_comprehensive_accessibility` Does
+
+When you call `check_comprehensive_accessibility`, it runs all 11 checks above and provides detailed error messages for any violations found. Each error includes:
+
+- **File location hints** - Know exactly which view file to fix
+- **Element details** - Tag, ID, classes, and visible text
+- **Actionable fix instructions** - Code examples showing how to fix the issue
+- **WCAG references** - Links to relevant WCAG guidelines
+
+If all checks pass, you'll see:
+```
+✅ All comprehensive accessibility checks passed! (11 checks)
+```
 
 ## Configuration
 
@@ -171,6 +220,7 @@ end
 
 ## Next Steps
 
+- **⭐ Read the [System Specs Guide](system_specs_for_accessibility.md)** - Recommended approach for reliable accessibility testing
 - **Read the [CI Integration Guide](continuous_integration.md)** to set up automated checks
 - **Check out [Writing Accessible Views](writing_accessible_views_in_rails.md)** for best practices
 - **See [Working with Designers](working_with_designers_and_content_authors.md)** for team collaboration

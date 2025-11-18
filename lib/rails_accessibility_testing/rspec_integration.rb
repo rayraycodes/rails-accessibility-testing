@@ -49,12 +49,13 @@ module RailsAccessibilityTesting
           instance = example.example_group_instance
           instance.check_comprehensive_accessibility
           
-          # Show success message if checks passed (no exception was raised)
-          unless example.exception
-            $stdout.puts "\n✅ All comprehensive accessibility checks passed! (11 checks)"
-            $stdout.flush
-          end
+          # If we get here without an exception, all checks passed
+          # Note: check_comprehensive_accessibility will raise if there are errors,
+          # so if we reach this point, checks passed successfully
+          $stdout.puts "\n✅ All comprehensive accessibility checks passed! (11 checks)"
+          $stdout.flush
         rescue StandardError => e
+          # Accessibility check failed - set the exception so test fails
           example.set_exception(e)
         end
       end

@@ -21,13 +21,14 @@ Create system specs for the pages you want to test. Name them with `_accessibili
 require 'rails_helper'
 
 RSpec.describe 'Home Page Accessibility', type: :system do
-  it 'loads successfully and passes comprehensive accessibility checks' do
+  it 'loads the page and runs comprehensive accessibility checks' do
     visit root_path
     expect(page).to have_content('Biorepository').or have_content('Welcome')
     
     # Run comprehensive accessibility checks
+    # This will fail the test if any accessibility issues are found
     check_comprehensive_accessibility
-    # ✅ Comprehensive accessibility checks (11 checks) also run automatically after this test!
+    # ✅ If all checks pass, you'll see: "All comprehensive accessibility checks passed! (11 checks)"
   end
 end
 ```
@@ -57,9 +58,10 @@ This will run your accessibility specs every 30 seconds while you develop.
 require 'rails_helper'
 
 RSpec.describe 'Home Page Accessibility', type: :system do
-  it 'passes accessibility checks' do
+  it 'runs accessibility checks on the home page' do
     visit root_path
-    # ✅ Checks run automatically!
+    # ✅ Comprehensive accessibility checks run automatically after this test!
+    # The test will fail if any accessibility issues are found
   end
 end
 ```
@@ -71,16 +73,19 @@ end
 require 'rails_helper'
 
 RSpec.describe 'Pages Accessibility', type: :system do
-  it 'home page is accessible' do
+  it 'runs accessibility checks on home page' do
     visit root_path
+    # Checks run automatically - test fails if issues found
   end
 
-  it 'about page is accessible' do
+  it 'runs accessibility checks on about page' do
     visit about_path
+    # Checks run automatically - test fails if issues found
   end
 
-  it 'contact page is accessible' do
+  it 'runs accessibility checks on contact page' do
     visit contact_path
+    # Checks run automatically - test fails if issues found
   end
 end
 ```
@@ -97,9 +102,10 @@ RSpec.describe 'Dashboard Accessibility', type: :system do
     sign_in user
   end
 
-  it 'dashboard is accessible' do
+  it 'runs accessibility checks on dashboard' do
     visit dashboard_path
-    # ✅ Checks run automatically after authentication!
+    # ✅ Comprehensive accessibility checks run automatically after authentication!
+    # The test will fail if any accessibility issues are found
   end
 end
 ```
