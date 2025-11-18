@@ -43,9 +43,24 @@ This creates:
 - `config/accessibility.yml` - Check settings
 - Updates `spec/rails_helper.rb` (if using RSpec)
 
-### Step 3: Run Your Tests
+### Step 3: Create System Specs (Recommended)
 
-That's it! Just run your system specs:
+Create system specs for the pages you want to test. This is the **recommended and most reliable** approach:
+
+```ruby
+# spec/system/home_page_accessibility_spec.rb
+require 'rails_helper'
+
+RSpec.describe 'Home Page Accessibility', type: :system do
+  it 'loads the page and runs comprehensive accessibility checks' do
+    visit root_path
+    # ✅ Comprehensive accessibility checks run automatically!
+    # The test will fail if any accessibility issues are found
+  end
+end
+```
+
+### Step 4: Run Your Tests
 
 ```bash
 bundle exec rspec spec/system/
@@ -53,5 +68,8 @@ bundle exec rspec spec/system/
 
 Accessibility checks run automatically on every system test that visits a page.
 
-For complete documentation, see the [Getting Started guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/getting_started.md) in the main repository.
+## Learn More
+
+- **[System Specs Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/system_specs_for_accessibility.md)** - ⭐ Recommended approach for reliable accessibility testing
+- **[Complete Getting Started Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/getting_started.md)** - Detailed setup instructions
 
