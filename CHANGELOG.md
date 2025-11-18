@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2024-12-18
+
+### Changed
+- Updated documentation examples to use clearer language ("runs accessibility checks" instead of "passes accessibility checks")
+- Improved test descriptions to accurately reflect that tests will fail if accessibility issues are found
+- Enhanced comments in examples to clarify when success messages appear
+
+### Improved
+- Better clarity in documentation about when accessibility checks pass vs fail
+- More accurate test descriptions that don't imply tests will pass when they may fail
+- Improved user understanding of accessibility check behavior
+
 ## [1.3.0] - 2024-12-18
 
 ### Added

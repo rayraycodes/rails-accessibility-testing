@@ -5,7 +5,7 @@
 # Automatically configures accessibility testing for Rails system specs with
 # comprehensive checks and detailed error messages.
 #
-# @version 1.3.0
+# @version 1.4.0
 # @author Regan Maharjan
 #
 # @example Basic usage
@@ -38,7 +38,7 @@ begin
   require_relative 'rails_accessibility_testing/version'
 rescue LoadError
   module RailsAccessibilityTesting
-    VERSION = '1.3.0'
+    VERSION = '1.4.0'
   end
 end
 
