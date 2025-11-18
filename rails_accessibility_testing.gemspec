@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production."
   spec.description   = "Comprehensive, opinionated but configurable accessibility testing gem for Rails. Integrates seamlessly into your test suite with RSpec and Minitest support. Includes CLI tool, Rails generator, YAML configuration, and 11+ WCAG 2.1 AA aligned checks with actionable error messages."
-  spec.homepage      = "https://github.com/rayraycodes/rails-accessibility-testing"
+  spec.homepage      = "https://rayraycodes.github.io/rails-accessibility-testing/"
   spec.license       = "MIT"
 
   # Include all necessary files
@@ -51,8 +51,8 @@ Gem::Specification.new do |spec|
   
   # Metadata for RubyGems
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/rayraycodes/rails-accessibility-testing"
+  spec.metadata["changelog_uri"] = "https://github.com/rayraycodes/rails-accessibility-testing/blob/main/CHANGELOG.md"
   spec.metadata["documentation_uri"] = "https://rayraycodes.github.io/rails-accessibility-testing/"
   spec.metadata["rubygems_mfa_required"] = "true"
 end
