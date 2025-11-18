@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production."
   spec.description   = "Comprehensive, opinionated but configurable accessibility testing gem for Rails. Integrates seamlessly into your test suite with RSpec and Minitest support. Includes CLI tool, Rails generator, YAML configuration, and 11+ WCAG 2.1 AA aligned checks with actionable error messages."
-  spec.homepage      = "https://github.com/rayraycodes/rails_accessibility_testing"
+  spec.homepage      = "https://github.com/rayraycodes/rails-accessibility-testing"
   spec.license       = "MIT"
 
   # Include all necessary files
