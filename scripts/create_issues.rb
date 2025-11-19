@@ -94,6 +94,8 @@ def create_issue(title, body, labels)
   request['Content-Type'] = 'application/json'
   request['User-Agent'] = 'Rails-A11y-Issue-Creator'
   
+  # GitHub API: if labels don't exist, they'll be created automatically
+  # But to be safe, we'll try without labels first if there's an error
   issue_data = {
     title: title,
     body: body,
