@@ -12,7 +12,7 @@ GITHUB_REPO = 'rayraycodes/rails-accessibility-testing'
 GITHUB_API = 'https://api.github.com'
 
 # Get GitHub token from environment
-GITHUB_TOKEN = ENV['GITHUB_TOKEN'] || ENV['GH_TOKEN']
+GITHUB_TOKEN = ENV['GITHUB_TOKEN'] || ENV['GITHUB_TOKEN']
 
 unless GITHUB_TOKEN
   puts "❌ Error: GITHUB_TOKEN environment variable not set"
@@ -88,9 +88,11 @@ def create_issue(title, body, labels)
   http.use_ssl = true
   
   request = Net::HTTP::Post.new(uri.path)
-  request['Authorization'] = "token #{GITHUB_TOKEN}"
+  # GitHub API accepts both "token" and "Bearer" - try Bearer first (newer format)
+  request['Authorization'] = "Bearer #{GITHUB_TOKEN}"
   request['Accept'] = 'application/vnd.github.v3+json'
   request['Content-Type'] = 'application/json'
+  request['User-Agent'] = 'Rails-A11y-Issue-Creator'
   
   issue_data = {
     title: title,
@@ -110,17 +112,47 @@ def create_issue(title, body, labels)
       number: issue['number'],
       url: issue['html_url']
     }
-  else
+  when 401
     {
       success: false,
-      error: response.body,
+      error: "Authentication failed - check your token is valid and has 'repo' scope",
+      code: response.code
+    }
+  when 403
+    {
+      success: false,
+      error: "Permission denied - token may not have 'repo' scope or rate limit exceeded",
+      code: response.code
+    }
+  when 404
+    {
+      success: false,
+      error: "Repository not found - check GITHUB_REPO is correct",
+      code: response.code
+    }
+  else
+    error_body = begin
+      JSON.parse(response.body)
+    rescue
+      response.body
+    end
+    
+    error_msg = if error_body.is_a?(Hash) && error_body['message']
+      error_body['message']
+    else
+      response.body[0..200] # First 200 chars
+    end
+    
+    {
+      success: false,
+      error: "#{error_msg} (HTTP #{response.code})",
       code: response.code
     }
   end
 rescue => e
   {
     success: false,
-    error: e.message
+    error: "#{e.message} (#{e.class})"
   }
 end
 
