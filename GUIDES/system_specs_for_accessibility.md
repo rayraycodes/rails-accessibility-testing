@@ -12,18 +12,19 @@ System specs are the **recommended and most reliable** way to run accessibility 
 
 ## Quick Setup
 
-### 1. Create System Specs
+### 1. Use the Generated Specs
 
-Create system specs for the pages you want to test. Name them with `_accessibility_spec.rb` suffix for clarity:
+The generator creates `spec/system/all_pages_accessibility_spec.rb` which automatically tests all GET routes in your application with **smart change detection**. This spec only tests pages when their related files (views, controllers, helpers) have changed, making it fast and focused.
+
+You can also create custom system specs for specific pages. Name them with `_accessibility_spec.rb` suffix for clarity:
 
 ```ruby
-# spec/system/home_page_accessibility_spec.rb
+# spec/system/my_page_accessibility_spec.rb
 require 'rails_helper'
 
-RSpec.describe 'Home Page Accessibility', type: :system do
+RSpec.describe 'My Page Accessibility', type: :system do
   it 'loads the page and runs comprehensive accessibility checks' do
     visit root_path
-    expect(page).to have_content('Biorepository').or have_content('Welcome')
     
     # Run comprehensive accessibility checks
     # This will fail the test if any accessibility issues are found
@@ -37,27 +38,27 @@ end
 
 The gem automatically runs comprehensive accessibility checks after each `visit` in system specs. You don't need to call `check_comprehensive_accessibility` manually unless you want to run checks at a specific point in your test.
 
-### 3. Add to Procfile.dev (Optional)
+### 3. Continuous Testing with Procfile (Optional)
 
-For continuous testing during development, add to your `Procfile.dev`:
+The generator automatically adds an accessibility watch command to your `Procfile.dev`:
 
 ```ruby
-web: $(bundle show rails_accessibility_testing)/exe/rails_server_safe
+web: bin/rails server
 css: bin/rails dartsass:watch
 a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
 ```
 
-This will run your accessibility specs every 30 seconds while you develop.
+This will run your accessibility specs every 30 seconds while you develop. The `all_pages_accessibility_spec.rb` uses smart change detection to only test pages when their related files change, making it fast and focused.
 
 ## Example Specs
 
 ### Basic Page Check
 
 ```ruby
-# spec/system/home_page_accessibility_spec.rb
+# spec/system/my_page_accessibility_spec.rb
 require 'rails_helper'
 
-RSpec.describe 'Home Page Accessibility', type: :system do
+RSpec.describe 'My Page Accessibility', type: :system do
   it 'runs accessibility checks on the home page' do
     visit root_path
     # ✅ Comprehensive accessibility checks run automatically after this test!
@@ -189,7 +190,7 @@ bundle exec rspec spec/system/*_accessibility_spec.rb
 ### Run Specific Spec
 
 ```bash
-bundle exec rspec spec/system/home_page_accessibility_spec.rb
+bundle exec rspec spec/system/all_pages_accessibility_spec.rb
 ```
 
 ### Run with Documentation Format

@@ -335,9 +335,11 @@ module RailsAccessibilityTesting
       end
       
       def generate_human_report(results)
+        timestamp = Time.now.strftime("%H:%M:%S")
+        
         output = []
         output << "=" * 70
-        output << "Rails A11y Accessibility Report"
+        output << "Rails A11y Accessibility Report • #{timestamp}"
         output << "=" * 70
         output << ""
         output << "Summary:"

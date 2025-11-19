@@ -45,14 +45,18 @@ module RailsAccessibilityTesting
       end
 
       def page_info(page_context)
-        lines = [
-          '📄 Page Being Tested:',
-          "   URL: #{page_context[:url] || '(unknown)'}",
-          "   Path: #{page_context[:path] || '(unknown)'}"
-        ]
-
+        lines = ['📄 Page Being Tested:']
+        
+        # Show view file first and prominently if available
         if page_context[:view_file]
-          lines << "   📝 Likely View File: #{page_context[:view_file]}"
+          lines << "   📝 View File: #{page_context[:view_file]}"
+          lines << "   🔗 Path: #{page_context[:path] || '(unknown)'}"
+          lines << "   🌐 URL: #{page_context[:url] || '(unknown)'}" if page_context[:url] && !page_context[:url].include?('127.0.0.1')
+        else
+          # Fallback to path/URL if view file not found
+          lines << "   🔗 Path: #{page_context[:path] || '(unknown)'}"
+          lines << "   🌐 URL: #{page_context[:url] || '(unknown)'}" if page_context[:url]
+          lines << "   ⚠️  View file not detected - check path: #{page_context[:path]}"
         end
 
         lines.join("\n") + "\n"
@@ -109,8 +113,14 @@ module RailsAccessibilityTesting
           interactive_element_remediation(error_type, element_context)
         when /Page missing H1 heading/i
           missing_h1_remediation
+        when /multiple h1|Multiple h1/i
+          multiple_h1_remediation(error_type, element_context)
         when /Heading hierarchy skipped/i
           heading_hierarchy_remediation(error_type, element_context)
+        when /Empty heading|heading.*empty/i
+          empty_heading_remediation(element_context)
+        when /heading.*styling|styling.*heading/i
+          heading_styling_remediation(element_context)
         when /Modal dialog has no focusable elements/i
           modal_remediation
         when /Page missing MAIN landmark/i
@@ -134,8 +144,14 @@ module RailsAccessibilityTesting
             interactive_element_remediation(error_type, element_context)
           when /missing.*H1/i
             missing_h1_remediation
+          when /multiple.*h1/i
+            multiple_h1_remediation(error_type, element_context)
           when /hierarchy.*skipped/i
             heading_hierarchy_remediation(error_type, element_context)
+          when /empty.*heading|heading.*empty/i
+            empty_heading_remediation(element_context)
+          when /heading.*styling|styling.*heading/i
+            heading_styling_remediation(element_context)
           when /modal.*focusable/i
             modal_remediation
           when /missing.*MAIN/i
@@ -225,6 +241,46 @@ module RailsAccessibilityTesting
         remediation += "   <h1><%= @page_title || 'Default Title' %></h1>\n\n"
         remediation += "   💡 Best Practice: Every page should have exactly one <h1>.\n"
         remediation += "      It should describe the main purpose of the page.\n"
+        remediation
+      end
+
+      def multiple_h1_remediation(error_type, element_context)
+        # Extract h1 count from error message if available
+        match = error_type.match(/(\d+)\s+total/)
+        h1_count = match ? match[1] : "multiple"
+        
+        remediation = "   Fix multiple h1 headings:\n\n"
+        remediation += "   Current: Page has #{h1_count} <h1> headings\n"
+        remediation += "   Should be: Only one <h1> per page\n\n"
+        remediation += "   Example fix:\n"
+        remediation += "   <h1>Main Page Title</h1>\n"
+        remediation += "   <h2>Section Title</h2>  ← Convert additional h1s to h2\n\n"
+        remediation += "   💡 Best Practice: Use only one <h1> for the main page title.\n"
+        remediation += "      Use <h2> for major sections, <h3> for subsections, etc.\n"
+        remediation
+      end
+
+      def empty_heading_remediation(element_context)
+        tag = element_context[:tag] || "h1"
+        remediation = "   Fix empty heading:\n\n"
+        remediation += "   Current: <#{tag}></#{tag}>\n"
+        remediation += "   Should be: <#{tag}>Descriptive Heading Text</#{tag}>\n\n"
+        remediation += "   Example:\n"
+        remediation += "   <#{tag}>Introduction to Our Services</#{tag}>\n\n"
+        remediation += "   💡 Best Practice: Headings must have accessible text.\n"
+        remediation += "      Screen readers need text content to announce headings.\n"
+        remediation
+      end
+
+      def heading_styling_remediation(element_context)
+        remediation = "   Fix heading used for styling:\n\n"
+        remediation += "   Current: Using <h1> or <h2> for visual styling only\n"
+        remediation += "   Should be: Use CSS classes for styling\n\n"
+        remediation += "   Example fix:\n"
+        remediation += "   ❌ <h1>•</h1>  (bad - heading for styling)\n"
+        remediation += "   ✅ <div class=\"decorative-bullet\">•</div>  (good - div with CSS)\n\n"
+        remediation += "   💡 Best Practice: Headings should be semantic, not decorative.\n"
+        remediation += "      Use <div> or <span> with CSS classes for visual styling.\n"
         remediation
       end
 

@@ -5,7 +5,7 @@
 # Automatically configures accessibility testing for Rails system specs with
 # comprehensive checks and detailed error messages.
 #
-# @version 1.4.3
+# @version 1.5.0
 # @author Regan Maharjan
 #
 # @example Basic usage
@@ -38,7 +38,7 @@ begin
   require_relative 'rails_accessibility_testing/version'
 rescue LoadError
   module RailsAccessibilityTesting
-    VERSION = '1.4.3'
+    VERSION = '1.5.0'
   end
 end
 
@@ -63,7 +63,7 @@ require_relative 'rails_accessibility_testing/checks/base_check'
 require_relative 'rails_accessibility_testing/checks/form_labels_check'
 require_relative 'rails_accessibility_testing/checks/image_alt_text_check'
 require_relative 'rails_accessibility_testing/checks/interactive_elements_check'
-require_relative 'rails_accessibility_testing/checks/heading_hierarchy_check'
+require_relative 'rails_accessibility_testing/checks/heading_check'
 require_relative 'rails_accessibility_testing/checks/keyboard_accessibility_check'
 require_relative 'rails_accessibility_testing/checks/aria_landmarks_check'
 require_relative 'rails_accessibility_testing/checks/form_errors_check'
@@ -77,6 +77,11 @@ require_relative 'rails_accessibility_testing/config/yaml_loader'
 
 # Load integrations
 require_relative 'rails_accessibility_testing/integration/minitest_integration'
+
+# Load railtie (needed for generator discovery) - only if Rails is available
+if defined?(Rails)
+  require_relative 'rails_accessibility_testing/railtie'
+end
 
 # Auto-configure when RSpec is available
 if defined?(RSpec)

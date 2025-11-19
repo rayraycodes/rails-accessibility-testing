@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../accessibility_helper'
+
 module RailsAccessibilityTesting
   module Checks
     # Base class for all accessibility checks
@@ -24,6 +26,9 @@ module RailsAccessibilityTesting
     #
     # @api private
     class BaseCheck
+      # Include partial detection methods from AccessibilityHelper
+      include AccessibilityHelper::PartialDetection
+      
       attr_reader :page, :context
       
       # Initialize the check
@@ -65,19 +70,20 @@ module RailsAccessibilityTesting
           rule_name: self.class.rule_name,
           message: message,
           element_context: element_context,
-          page_context: page_context,
+          page_context: page_context(element_context),
           wcag_reference: wcag_reference,
           remediation: remediation
         )
       end
       
       # Get page context
+      # @param element_context [Hash] Optional element context to help find partials
       # @return [Hash]
-      def page_context
+      def page_context(element_context = nil)
         {
           url: safe_page_url,
           path: safe_page_path,
-          view_file: determine_view_file
+          view_file: determine_view_file(element_context)
         }
       end
       
@@ -123,7 +129,8 @@ module RailsAccessibilityTesting
       end
       
       # Determine likely view file (simplified version)
-      def determine_view_file
+      # Also checks for partials that might contain the element
+      def determine_view_file(element_context = nil)
         return nil unless safe_page_path
         
         path = safe_page_path.split('?').first.split('#').first
@@ -134,7 +141,21 @@ module RailsAccessibilityTesting
             controller = route[:controller]
             action = route[:action]
             
-            find_view_file_for_controller_action(controller, action)
+            view_file = find_view_file_for_controller_action(controller, action)
+            
+            # If we found the view file and have element context, check for partials
+            if view_file && element_context
+              # Scan the view file for rendered partials
+              partials_in_view = find_partials_in_view_file(view_file)
+              
+              # Check if element matches any partial in the view
+              if partials_in_view.any?
+                partial_file = find_partial_for_element_in_list(controller, element_context, partials_in_view)
+                return partial_file if partial_file
+              end
+            end
+            
+            view_file
           rescue StandardError
             nil
           end
@@ -142,12 +163,40 @@ module RailsAccessibilityTesting
       end
       
       # Find view file for controller and action
+      # Handles cases where action name doesn't match view file name
       def find_view_file_for_controller_action(controller, action)
         extensions = %w[erb haml slim]
+        controller_path = "app/views/#{controller}"
+        
+        # First, try exact matches
         extensions.each do |ext|
-          view_path = "app/views/#{controller}/#{action}.html.#{ext}"
-          return view_path if File.exist?(view_path)
+          view_paths = [
+            "#{controller_path}/#{action}.html.#{ext}",
+            "#{controller_path}/_#{action}.html.#{ext}",
+            "#{controller_path}/#{action}.#{ext}"
+          ]
+          
+          found = view_paths.find { |vp| File.exist?(vp) }
+          return found if found
         end
+        
+        # If exact match not found, scan all view files in the controller directory
+        # This handles cases like: search action -> search_result.html.erb
+        if File.directory?(controller_path)
+          extensions.each do |ext|
+            # Look for files that might match the action (e.g., search_result, search_results, etc.)
+            pattern = "#{controller_path}/*#{action}*.html.#{ext}"
+            matching_files = Dir.glob(pattern)
+            
+            # Prefer files that start with the action name
+            preferred = matching_files.find { |f| File.basename(f).start_with?("#{action}_") || File.basename(f).start_with?("#{action}.") }
+            return preferred if preferred
+            
+            # Return first match if any found
+            return matching_files.first if matching_files.any?
+          end
+        end
+        
         nil
       end
     end

@@ -25,21 +25,44 @@ module RailsAccessibilityTesting
       # Run all enabled checks against a page
       # @param page [Capybara::Session] The page to check
       # @param context [Hash] Additional context (url, path, etc.)
+      # @param progress_callback [Proc] Optional callback for progress updates
       # @return [Array<Violation>] Array of violations found
-      def check(page, context: {})
+      def check(page, context: {}, progress_callback: nil)
         @violation_collector.reset
         
-        enabled_checks.each do |check_class|
-          next if rule_ignored?(check_class.rule_name)
+        checks_to_run = enabled_checks.reject { |check_class| rule_ignored?(check_class.rule_name) }
+        total_checks = checks_to_run.length
+        
+        checks_to_run.each_with_index do |check_class, index|
+          check_number = index + 1
+          check_name = humanize_check_name(check_class.rule_name)
+          
+          # Report progress
+          if progress_callback
+            progress_callback.call(check_number, total_checks, check_name, :start)
+          end
           
           begin
             check_instance = check_class.new(page: page, context: context)
             violations = check_instance.run
-            @violation_collector.add(violations) if violations.any?
+            
+            if violations.any?
+              @violation_collector.add(violations)
+              if progress_callback
+                progress_callback.call(check_number, total_checks, check_name, :found_issues, violations.length)
+              end
+            else
+              if progress_callback
+                progress_callback.call(check_number, total_checks, check_name, :passed)
+              end
+            end
           rescue StandardError => e
             # Log but don't fail - one check error shouldn't stop others
             if defined?(RailsAccessibilityTesting) && RailsAccessibilityTesting.config.respond_to?(:logger) && RailsAccessibilityTesting.config.logger
               RailsAccessibilityTesting.config.logger.error("Check #{check_class.rule_name} failed: #{e.message}")
+            end
+            if progress_callback
+              progress_callback.call(check_number, total_checks, check_name, :error, e.message)
             end
           end
         end
@@ -55,7 +78,7 @@ module RailsAccessibilityTesting
           Checks::FormLabelsCheck,
           Checks::ImageAltTextCheck,
           Checks::InteractiveElementsCheck,
-          Checks::HeadingHierarchyCheck,
+          Checks::HeadingCheck,
           Checks::KeyboardAccessibilityCheck,
           Checks::AriaLandmarksCheck,
           Checks::FormErrorsCheck,
@@ -92,6 +115,27 @@ module RailsAccessibilityTesting
           .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
           .gsub(/([a-z\d])([A-Z])/, '\1_\2')
           .downcase
+      end
+      
+      # Convert rule name to human-readable check name
+      def humanize_check_name(rule_name)
+        # Map of rule names to friendly display names
+        friendly_names = {
+          'form_labels' => 'Form Labels',
+          'image_alt_text' => 'Image Alt Text',
+          'interactive_elements' => 'Interactive Elements',
+          'heading' => 'Heading Hierarchy',
+          'keyboard_accessibility' => 'Keyboard Accessibility',
+          'aria_landmarks' => 'ARIA Landmarks',
+          'form_errors' => 'Form Error Associations',
+          'table_structure' => 'Table Structure',
+          'duplicate_ids' => 'Duplicate IDs',
+          'skip_links' => 'Skip Links',
+          'color_contrast' => 'Color Contrast'
+        }
+        
+        rule_str = rule_name.to_s
+        friendly_names[rule_str] || rule_str.split('_').map(&:capitalize).join(' ')
       end
     end
   end

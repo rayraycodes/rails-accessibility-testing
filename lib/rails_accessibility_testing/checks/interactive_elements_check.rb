@@ -23,7 +23,17 @@ module RailsAccessibilityTesting
           aria_labelledby = element[:"aria-labelledby"]
           title = element[:title]
           
-          if text.blank? && aria_label.blank? && aria_labelledby.blank? && title.blank?
+          # Check if element contains an image with alt text (common pattern for logo links)
+          has_image_with_alt = false
+          if text.blank?
+            images = element.all('img', visible: :all)
+            has_image_with_alt = images.any? do |img|
+              alt = img[:alt]
+              alt.present? && !alt.strip.empty?
+            end
+          end
+          
+          if text.blank? && aria_label.blank? && aria_labelledby.blank? && title.blank? && !has_image_with_alt
             element_ctx = element_context(element)
             tag = element.tag_name
             

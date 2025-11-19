@@ -15,7 +15,17 @@ if [ -f "$PIDFILE" ]; then
     # Check if it's listening on the expected port
     if lsof -ti:$PORT -sTCP:LISTEN | grep -q "^$PID$" 2>/dev/null; then
       echo "Server is already running (pid: $PID, port: $PORT)"
+      echo "Keeping process alive for Foreman..."
+      # Keep the process alive by waiting indefinitely
+      # This prevents Foreman from shutting down all processes
+      while true; do
+        # Check if the server process is still running
+        if ! kill -0 "$PID" 2>/dev/null; then
+          echo "Server process ended. Exiting."
       exit 0
+        fi
+        sleep 5
+      done
     else
       # PID exists but not listening on port - stale PID file
       echo "Removing stale PID file (pid: $PID not listening on port $PORT)"
@@ -32,8 +42,15 @@ fi
 if lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   EXISTING_PID=$(lsof -ti:$PORT -sTCP:LISTEN | head -1)
   echo "Port $PORT is already in use by process $EXISTING_PID"
-  echo "Server may already be running. Exiting gracefully."
+  echo "Server may already be running. Keeping process alive for Foreman..."
+  # Keep the process alive by monitoring the existing server
+  while true; do
+    if ! lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+      echo "Port $PORT is now free. Exiting so Foreman can restart."
   exit 0
+    fi
+    sleep 5
+  done
 fi
 
 # Start the server normally

@@ -1,0 +1,361 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Live accessibility scanner for development
+# Monitors page visits and runs accessibility checks automatically
+# Usage: Add to Procfile.dev as: a11y: bundle exec a11y_live_scanner
+
+require 'bundler/setup'
+require 'json'
+require 'fileutils'
+require 'timeout'
+
+# Load Rails environment
+# Find Rails root by looking for config/environment.rb
+rails_root = Dir.pwd
+while rails_root != '/' && !File.exist?(File.join(rails_root, 'config', 'environment.rb'))
+  rails_root = File.dirname(rails_root)
+end
+
+if File.exist?(File.join(rails_root, 'config', 'environment.rb'))
+  Dir.chdir(rails_root)
+  require File.join(rails_root, 'config', 'environment')
+end
+
+# Require the gem and ensure all components are loaded
+begin
+  require 'rails_accessibility_testing'
+  # Verify AccessibilityHelper is available
+  unless defined?(RailsAccessibilityTesting::AccessibilityHelper)
+    raise LoadError, "RailsAccessibilityTesting::AccessibilityHelper not found after requiring gem"
+  end
+rescue LoadError => e
+  $stderr.puts "❌ Error loading rails_accessibility_testing gem: #{e.message}"
+  $stderr.puts "   Make sure the gem is installed: bundle install"
+  exit 1
+end
+
+require 'capybara'
+require 'capybara/dsl'
+require 'selenium-webdriver'
+
+# Try to require webdrivers
+begin
+  require 'webdrivers'
+rescue LoadError
+  # webdrivers not available
+end
+
+# Setup Capybara for live scanning
+Capybara.default_driver = :selenium_chrome_headless
+Capybara.app_host = ENV.fetch('RAILS_URL', 'http://localhost:3000')
+Capybara.default_max_wait_time = 5
+
+# Configure Chrome options
+browser_options = Selenium::WebDriver::Chrome::Options.new
+browser_options.add_argument('--headless')
+browser_options.add_argument('--window-size=1920,1080')
+browser_options.add_argument('--disable-gpu')
+browser_options.add_argument('--no-sandbox')
+
+Capybara.register_driver :selenium_chrome_headless do |app|
+  Capybara::Selenium::Driver.new(
+    app,
+    browser: :chrome,
+    options: browser_options
+  )
+end
+
+include Capybara::DSL
+
+# Page visit log file
+def log_file
+  defined?(Rails) ? File.join(Rails.root, 'tmp', 'a11y_page_visits.log') : File.join(Dir.pwd, 'tmp', 'a11y_page_visits.log')
+end
+
+def scanned_pages_file
+  defined?(Rails) ? File.join(Rails.root, 'tmp', 'a11y_scanned_pages.json') : File.join(Dir.pwd, 'tmp', 'a11y_scanned_pages.json')
+end
+
+# Track which pages we've already scanned (to avoid duplicates)
+def load_scanned_pages
+  return {} unless File.exist?(scanned_pages_file)
+  JSON.parse(File.read(scanned_pages_file))
+rescue StandardError
+  {}
+end
+
+def save_scanned_page(path, timestamp)
+  scanned = load_scanned_pages
+  scanned[path] = timestamp
+  # Use atomic write to avoid triggering file watchers unnecessarily
+  temp_file = "#{scanned_pages_file}.tmp"
+  File.write(temp_file, scanned.to_json)
+  FileUtils.mv(temp_file, scanned_pages_file)
+rescue StandardError => e
+  # Silently fail - don't break scanning if file write fails
+end
+
+def page_already_scanned?(path, visit_timestamp)
+  scanned = load_scanned_pages
+  return false unless scanned[path]
+  # Don't rescan if scanned within last 30 seconds (debounce)
+  last_scan_time = scanned[path].to_f
+  (Time.now.to_f - last_scan_time) < 30
+end
+
+# Run accessibility check on a page
+def check_page(path, url = nil)
+  begin
+    # Check if scan was cancelled before starting
+    if $scan_cancelled
+      puts "⏭️  Scan cancelled - user navigated to different page"
+      return nil
+    end
+    
+    # Show what we're about to scan
+    puts "\n" + "="*70
+    puts "🔍 Starting accessibility scan..."
+    puts "="*70
+    puts "📍 Path: #{path}"
+    puts "🔗 URL: #{url || path}"
+    puts "⏰ Time: #{Time.now.strftime('%H:%M:%S')}"
+    puts "="*70
+    puts ""
+    
+    # Visit the page
+    puts "  🌐 Loading page..."
+    visit path
+    
+    # Check for cancellation after page load
+    if $scan_cancelled || $current_scan_target != path
+      puts "⏭️  Scan cancelled - user navigated to different page"
+      return nil
+    end
+    
+    # Capybara already waits for page load, no need for explicit sleep
+    # Only wait if page hasn't loaded (Capybara handles this automatically)
+    
+    # Get page details
+    current_url = page.current_url rescue path
+    page_title = page.title rescue 'Unknown'
+    
+    # Skip if redirected to sign in
+    if current_url.include?('sign_in') || current_url.include?('login')
+      puts "⏭️  Skipping #{path}: requires authentication"
+      puts "   Redirected to: #{current_url}"
+      return nil
+    end
+    
+    # Check for cancellation before running checks
+    if $scan_cancelled || $current_scan_target != path
+      puts "⏭️  Scan cancelled - user navigated to different page"
+      return nil
+    end
+    
+    # Show page details
+    puts "  ✓ Page loaded successfully"
+    puts "  📄 Title: #{page_title}"
+    puts "  🔗 Final URL: #{current_url}"
+    puts ""
+    puts "  🔍 Running accessibility checks..."
+    puts ""
+    
+    # Run accessibility checks using Capybara page directly
+    # Verify AccessibilityHelper is available
+    unless defined?(RailsAccessibilityTesting::AccessibilityHelper)
+      raise "RailsAccessibilityTesting::AccessibilityHelper is not available. Make sure the gem is properly installed."
+    end
+    
+    # Create a minimal helper instance
+    helper_class = Class.new do
+      include RailsAccessibilityTesting::AccessibilityHelper
+      
+      def initialize(page)
+        @page = page
+      end
+      
+      def page
+        @page
+      end
+    end
+    
+    helper = helper_class.new(page)
+    
+    # Run checks with periodic cancellation checks
+    # Note: The checks themselves don't support cancellation yet, but we check before/after
+    result = helper.check_comprehensive_accessibility
+    
+    # Check for cancellation after checks complete
+    if $scan_cancelled || $current_scan_target != path
+      puts "⏭️  Scan cancelled - user navigated to different page"
+      return nil
+    end
+    
+    # Show scan completion
+    puts ""
+    puts "="*70
+    puts "✅ Scan completed for: #{path}"
+    if result && result.is_a?(Hash)
+      puts "   Errors: #{result[:errors] || 0}, Warnings: #{result[:warnings] || 0}"
+    end
+    puts "="*70
+    puts ""
+    
+    # Return result
+    result
+  rescue StandardError => e
+    # Don't show error if scan was cancelled
+    if $scan_cancelled || $current_scan_target != path
+      return nil
+    end
+    
+    puts ""
+    puts "="*70
+    puts "⚠️  Error checking #{path}"
+    puts "   Error: #{e.message}"
+    puts "   URL: #{url || path}"
+    puts "="*70
+    puts ""
+    nil
+  end
+end
+
+# Global variable to track current scan target (for cancellation)
+$current_scan_target = nil
+$scan_cancelled = false
+
+# Main scanner loop
+def run_scanner
+  puts "\n" + "="*70
+  puts "🔍 Live Accessibility Scanner Started"
+  puts "="*70
+  puts "📍 Monitoring: #{Capybara.app_host}"
+  puts "📝 Watching: #{log_file}"
+  puts "💡 Navigate to pages in your browser to see accessibility reports"
+  puts "⏱️  Checking for new page visits every 2 seconds..."
+  puts "💡 Tip: If you navigate to a new page, current scan will be cancelled"
+  puts "="*70
+  puts ""
+  puts "⏳ Waiting for page visits... (scanning will start automatically)"
+  puts ""
+  
+  # Create log file if it doesn't exist
+  FileUtils.mkdir_p(File.dirname(log_file))
+  FileUtils.touch(log_file) unless File.exist?(log_file)
+  
+  # Start reading from end of file
+  last_position = File.exist?(log_file) ? File.size(log_file) : 0
+  last_scan_time = {} # In-memory debounce cache
+  
+  loop do
+    begin
+      # Check if log file has new content
+      current_size = File.exist?(log_file) ? File.size(log_file) : 0
+      
+      if current_size > last_position
+        # Read all new lines to get the latest page visit
+        new_visits = []
+        File.open(log_file, 'r') do |f|
+          f.seek(last_position)
+          f.each_line do |line|
+            next if line.strip.empty?
+            
+            begin
+              visit_data = JSON.parse(line.strip)
+              new_visits << visit_data
+            rescue JSON::ParserError => e
+              # Skip invalid JSON
+              next
+            end
+          end
+        end
+        
+        # Process only the most recent visit (user's current page)
+        if new_visits.any?
+          begin
+            # Get the latest visit (last in the array)
+            latest_visit = new_visits.last
+            path = latest_visit['path']
+            url = latest_visit['url']
+            timestamp = latest_visit['timestamp'].to_f
+            
+            # Debounce: Skip if we scanned this page in the last 30 seconds (in-memory check)
+            if last_scan_time[path] && (Time.now.to_f - last_scan_time[path]) < 30
+              last_position = current_size
+              next
+            end
+            
+            # Skip if we've already scanned this page (from persistent storage)
+            if page_already_scanned?(path, timestamp)
+              last_position = current_size
+              next
+            end
+            
+            # Cancel current scan if scanning a different page
+            if $current_scan_target && $current_scan_target != path
+              puts "\n⚠️  User navigated to new page - cancelling current scan"
+              puts "   Previous: #{$current_scan_target}"
+              puts "   New: #{path}"
+              $scan_cancelled = true
+              # Give a moment for cancellation to be processed
+              sleep 0.5
+            end
+            
+            # Reset cancellation flag and set new target
+            $scan_cancelled = false
+            $current_scan_target = path
+            
+            # Mark as scanned (both in memory and on disk)
+            last_scan_time[path] = Time.now.to_f
+            save_scanned_page(path, timestamp)
+            
+            # Show that we detected a new page visit
+            visit_time = Time.at(timestamp)
+            puts "\n" + "🎯" + "="*69
+            puts "📥 NEW PAGE VISIT DETECTED"
+            puts "="*70
+            puts "   Path: #{path}"
+            puts "   URL: #{url}"
+            puts "   Visited at: #{visit_time.strftime('%H:%M:%S')}"
+            puts "   Starting scan..."
+            puts "="*70
+            
+            # Run check with URL info
+            check_page(path, url)
+            
+            # Clear scan target after completion
+            $current_scan_target = nil if $current_scan_target == path
+          rescue StandardError => e
+            puts "⚠️  Error processing visit: #{e.message}"
+          end
+        end
+        
+        last_position = current_size
+      end
+      
+      # Sleep longer to reduce file system activity and avoid triggering Rails reloads
+      # Check every 2 seconds - fast enough for live scanning, slow enough to not overload
+      # Show a subtle indicator that we're still monitoring (every 10 seconds)
+      if Time.now.to_i % 10 == 0
+        print "💚 Monitoring... (#{Time.now.strftime('%H:%M:%S')})\r"
+        $stdout.flush
+      end
+      sleep 2
+      
+    rescue StandardError => e
+      puts "\n⚠️  Scanner error: #{e.message}"
+      puts "   Continuing to monitor..."
+      sleep 2
+    end
+  end
+end
+
+# Run the scanner
+begin
+  run_scanner
+rescue Interrupt
+  puts "\n\n👋 Live scanner stopped"
+  exit 0
+end
+

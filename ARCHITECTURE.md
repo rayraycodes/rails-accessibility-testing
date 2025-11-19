@@ -2,19 +2,11 @@
 
 ## Project Identity
 
-### Gem Name Options
-
-After careful consideration, we've selected:
+### Gem Name
 
 **Final Name: `rails_accessibility_testing`**
 
 **Note:** The gem uses `rails_a11y` as a short alias for the generator command and CLI tool, but the official gem name is `rails_accessibility_testing`.
-
-**Alternative names considered:**
-1. `rails_accessibility_testing` - **SELECTED** - Clear and descriptive
-2. `rails_a11y` - Short alias used for CLI and generator
-3. `a11y_rails` - Alternative short form
-4. `accessible_rails` - Descriptive but longer
 
 ### Tagline
 
@@ -34,15 +26,28 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 2. **Accessibility at Core**: WCAG 2.1 AA compliance is the foundation
 3. **Rails Native**: Feels like a natural part of Rails, not a bolt-on
 4. **Progressive Enhancement**: Works with zero config, scales with configuration
+5. **Performance Conscious**: Smart caching and change detection for fast feedback
 
 ### Component Architecture
 
 ```
-rails_a11y/
+rails_accessibility_testing/
 ├── Core Engine
 │   ├── Rule Engine          # Evaluates accessibility rules
-│   ├── Check Definitions    # WCAG-aligned check implementations
+│   ├── Check Definitions    # WCAG-aligned check implementations (11+ checks)
 │   └── Violation Collector  # Aggregates and formats violations
+│
+├── View Detection System (NEW in 1.5.0)
+│   ├── View File Detector   # Finds view files from routes/actions
+│   ├── Partial Detection    # Scans view files for rendered partials
+│   ├── Route Recognition    # Maps URLs to controller/action pairs
+│   └── Fuzzy Matching       # Handles action/view name mismatches
+│
+├── Performance System (NEW in 1.5.0)
+│   ├── Page Scanning Cache  # Prevents duplicate scans
+│   ├── Change Detector      # Detects file changes and impact
+│   ├── First-Run Logic      # Optimizes initial vs subsequent runs
+│   └── Asset Change Detection # Tracks CSS/JS changes
 │
 ├── Rails Integration
 │   ├── Railtie             # Rails initialization hooks
@@ -76,13 +81,20 @@ Test Execution
     ↓
 System Test Helper (RSpec/Minitest)
     ↓
+Page Scanning Cache Check (NEW in 1.5.0)
+    ↓ (if not cached)
 Rule Engine
     ↓
 Check Definitions (11+ checks)
     ↓
+View File Detection (NEW in 1.5.0)
+    ├── Route Recognition
+    ├── View File Matching
+    └── Partial Detection
+    ↓
 Violation Collector
     ↓
-Error Message Builder
+Error Message Builder (with file paths)
     ↓
 Test Failure / CLI Report
 ```
@@ -91,21 +103,87 @@ Test Failure / CLI Report
 
 The rule engine is the heart of the gem. It:
 
-1. **Loads Configuration**: Reads `config/accessibility.yml` with profile support**
+1. **Loads Configuration**: Reads `config/accessibility.yml` with profile support
 2. **Applies Rule Overrides**: Respects ignored rules with comments
 3. **Executes Checks**: Runs enabled checks in order
 4. **Collects Violations**: Aggregates all violations before reporting
-5. **Formats Output**: Creates actionable error messages
+5. **Formats Output**: Creates actionable error messages with precise file locations
 
 ### Check Definition Structure
 
 Each check is a self-contained class that:
 
-- Implements a standard interface
+- Implements a standard interface (`BaseCheck`)
 - Returns violations with context
 - Includes WCAG references
 - Provides remediation suggestions
 - Can be enabled/disabled via config
+- **NEW in 1.5.0**: Includes partial detection methods for better file location
+
+### View Detection System (NEW in 1.5.0)
+
+The view detection system is a major enhancement that makes error messages much more actionable:
+
+#### View File Detection
+
+1. **Route Recognition**: Uses `Rails.application.routes.recognize_path` to get controller/action
+2. **Exact Matching**: First tries exact match (`controller/action.html.erb`)
+3. **Fuzzy Matching**: If no exact match, scans controller directory for files containing action name
+4. **Preference Logic**: Prefers files starting with action name (e.g., `search_result.html.erb` for `search` action)
+5. **Fallback**: If controller has only one view file, uses that
+
+#### Partial Detection
+
+1. **Pattern Scanning**: Scans view file content for `render` statements using multiple regex patterns
+2. **Normalization**: Handles various render syntaxes (`render 'partial'`, `render partial: 'partial'`, ERB syntax)
+3. **Path Resolution**: Resolves partial paths (handles namespaced partials like `layouts/navbar`)
+4. **Multi-Location Search**: Searches in controller directory, `shared/`, and `layouts/`
+5. **Element Mapping**: When an accessibility issue is found, determines if it's in a partial
+
+#### Module Structure
+
+```ruby
+module AccessibilityHelper
+  module PartialDetection
+    # Reusable partial detection methods
+    def find_partials_in_view_file(view_file)
+      # Scans view file for render statements
+    end
+    
+    def find_partial_for_element_in_list(controller, element_context, partial_list)
+      # Maps element to specific partial
+    end
+  end
+end
+```
+
+### Performance System (NEW in 1.5.0)
+
+#### Page Scanning Cache
+
+- **Purpose**: Prevents duplicate accessibility scans of the same page
+- **Implementation**: Module-level `@scanned_pages` hash
+- **Key Strategy**: Uses page path (preferred) or URL as cache key
+- **Lifecycle**: Persists for duration of test suite execution
+- **API**: `reset_scanned_pages_cache` for manual reset
+
+#### Change Detection
+
+- **Purpose**: Only test pages when relevant files have changed
+- **Monitored Files**: Views, controllers, helpers, CSS, JavaScript
+- **Impact Analysis**: 
+  - Main layouts → affects all pages
+  - Specific partials → affects only pages that render them
+  - Controllers → affects all routes for that controller
+  - Helpers → affects all pages (can be used anywhere)
+  - Assets → affects all pages (global impact)
+
+#### First-Run Logic
+
+- **Marker File**: `.rails_a11y_initialized` tracks first run
+- **Initial Run**: Tests all pages to establish baseline
+- **Subsequent Runs**: Only tests changed files
+- **Force Option**: `TEST_ALL_PAGES=true` environment variable
 
 ---
 
@@ -135,15 +213,34 @@ Each check is a self-contained class that:
 - More efficient than stopping at first error
 - Better for CI/CD reports
 
-### 4. View File Detection
+### 4. View File Detection (Enhanced in 1.5.0)
 
 **Why detect view files?**
 - Points developers to exact file to fix
 - Works with partials and layouts
 - Reduces debugging time
 - Makes errors actionable
+- **NEW**: Handles action/view name mismatches
+- **NEW**: Detects partials automatically
 
-### 5. Dual Test Framework Support
+### 5. Page Scanning Cache (NEW in 1.5.0)
+
+**Why cache scanned pages?**
+- Prevents duplicate work
+- Faster test execution
+- Better developer experience
+- Reduces unnecessary browser automation
+
+### 6. Smart Change Detection (Enhanced in 1.5.0)
+
+**Why detect changes?**
+- Only test what changed (faster feedback)
+- Reduces test execution time
+- Better CI/CD performance
+- **NEW**: Detects asset changes (CSS/JS)
+- **NEW**: Smart partial impact analysis
+
+### 7. Dual Test Framework Support
 
 **Why both RSpec and Minitest?**
 - Rails teams use both
@@ -157,67 +254,72 @@ Each check is a self-contained class that:
 
 ```
 lib/
-├── rails_a11y.rb                    # Main entry point
-├── rails_a11y/
+├── rails_accessibility_testing.rb                    # Main entry point
+├── rails_accessibility_testing/
 │   ├── version.rb
 │   ├── configuration.rb             # Config management
 │   ├── railtie.rb                   # Rails integration
 │   │
 │   ├── engine/
 │   │   ├── rule_engine.rb           # Core rule evaluator
-│   │   ├── violation_collector.rb   # Aggregates violations
-│   │   └── check_context.rb         # Context for checks
+│   │   ├── violation_collector.rb  # Aggregates violations
+│   │   └── violation.rb            # Violation data structure
 │   │
 │   ├── checks/
-│   │   ├── base_check.rb            # Base class for all checks
+│   │   ├── base_check.rb           # Base class for all checks
+│   │   │                            # (includes PartialDetection in 1.5.0)
 │   │   ├── form_labels_check.rb
 │   │   ├── image_alt_text_check.rb
 │   │   ├── interactive_elements_check.rb
-│   │   ├── heading_hierarchy_check.rb
+│   │   ├── heading_check.rb        # Renamed from heading_hierarchy_check
 │   │   ├── keyboard_accessibility_check.rb
 │   │   ├── aria_landmarks_check.rb
 │   │   ├── form_errors_check.rb
 │   │   ├── table_structure_check.rb
 │   │   ├── duplicate_ids_check.rb
 │   │   ├── skip_links_check.rb
-│   │   └── color_contrast_check.rb   # New
+│   │   └── color_contrast_check.rb
+│   │
+│   ├── accessibility_helper.rb      # Main helper module
+│   │                                # (includes PartialDetection, page cache)
+│   │
+│   ├── change_detector.rb          # Smart change detection
+│   │                                # (enhanced in 1.5.0 for assets/partials)
 │   │
 │   ├── integration/
 │   │   ├── rspec_integration.rb
 │   │   ├── minitest_integration.rb
-│   │   └── system_test_helper.rb    # Shared Capybara helpers
+│   │   └── system_test_helper.rb   # Shared Capybara helpers
 │   │
 │   ├── cli/
-│   │   ├── command.rb                # Main CLI command
-│   │   ├── url_scanner.rb            # Scans URLs/routes
-│   │   └── report_generator.rb       # Generates reports
+│   │   └── command.rb              # Main CLI command
 │   │
 │   ├── config/
-│   │   ├── yaml_loader.rb            # Loads YAML config
-│   │   ├── profile_manager.rb        # Manages profiles
-│   │   └── rule_override.rb          # Handles ignored rules
+│   │   └── yaml_loader.rb         # Loads YAML config
 │   │
-│   ├── errors/
-│   │   ├── error_message_builder.rb  # Formats error messages
-│   │   └── violation_formatter.rb   # Formats individual violations
+│   ├── error_message_builder.rb   # Formats error messages
+│   │                                # (enhanced with partial detection in 1.5.0)
 │   │
-│   └── utils/
-│       ├── view_file_detector.rb     # Detects view files
-│       └── wcag_reference.rb         # WCAG reference data
+│   └── middleware/
+│       └── page_visit_logger.rb
 │
 ├── generators/
 │   └── rails_a11y/
 │       └── install/
-│           ├── generator.rb
+│           ├── install_generator.rb
 │           └── templates/
 │               ├── initializer.rb.erb
-│               └── accessibility.yml.erb
+│               ├── accessibility.yml.erb
+│               └── all_pages_accessibility_spec.rb.erb
+│               # (enhanced in 1.5.0 with dynamic route discovery)
 │
 └── tasks/
-    └── accessibility.rake            # Rake tasks
+    └── accessibility.rake
 
 exe/
-└── rails_a11y                        # CLI executable
+├── rails_a11y                    # CLI executable
+├── rails_server_safe             # Safe server wrapper (NEW in 1.5.0)
+└── a11y_live_scanner            # Live scanner tool
 
 GUIDES/
 ├── getting_started.md
@@ -227,10 +329,9 @@ GUIDES/
 
 docs_site/
 ├── index.html
-├── usage.html
-├── configuration.html
-├── ci_integration.html
-└── contributing.html
+├── getting_started.md
+├── configuration.md
+└── ci_integration.md
 ```
 
 ---
@@ -240,11 +341,18 @@ docs_site/
 ### Adding Custom Checks
 
 ```ruby
-module RailsA11y
+module RailsAccessibilityTesting
   module Checks
     class CustomCheck < BaseCheck
+      def self.rule_name
+        :custom_check
+      end
+      
       def check
+        violations = []
         # Implementation
+        # Access to page, context, and partial detection methods
+        violations
       end
     end
   end
@@ -254,10 +362,11 @@ end
 ### Custom Error Formatters
 
 ```ruby
-module RailsA11y
-  module Errors
-    class CustomFormatter < ViolationFormatter
+module RailsAccessibilityTesting
+  class CustomFormatter
+    def format(violation)
       # Custom formatting logic
+      # Access to violation.element_context, violation.page_context
     end
   end
 end
@@ -281,10 +390,14 @@ ci:
 ## Performance Considerations
 
 1. **Lazy Loading**: Checks loaded only when needed
-2. **Caching**: View file detection cached
-3. **Parallel Execution**: Checks can run in parallel (future)
-4. **Selective Execution**: Only run checks for changed files (existing feature)
-5. **Configurable Depth**: Expensive checks behind flags
+2. **Caching**: 
+   - View file detection cached (implicit)
+   - **Page scanning cache** (NEW in 1.5.0): Prevents duplicate scans
+3. **Selective Execution**: 
+   - Only run checks for changed files (existing feature)
+   - **Smart change detection** (enhanced in 1.5.0)
+4. **Configurable Depth**: Expensive checks behind flags (color contrast)
+5. **Parallel Execution**: Checks can run in parallel (future)
 
 ---
 
@@ -294,6 +407,34 @@ ci:
 2. **Integration Tests**: Full Rails app with RSpec/Minitest
 3. **CLI Tests**: Test CLI against real Rails routes
 4. **Documentation Tests**: Ensure examples work
+5. **Performance Tests**: Verify caching and change detection work correctly
+
+---
+
+## Version 1.5.0 Highlights
+
+### New Components
+
+1. **PartialDetection Module**: Reusable partial detection logic
+2. **Page Scanning Cache**: Module-level cache for scanned pages
+3. **Enhanced ChangeDetector**: Asset change detection and smart partial impact analysis
+4. **Improved View File Detection**: Fuzzy matching and controller directory scanning
+5. **Rails Server Safe Wrapper**: Prevents Foreman from terminating processes
+
+### Enhanced Components
+
+1. **BaseCheck**: Now includes PartialDetection for better file location
+2. **AccessibilityHelper**: Includes page cache and partial detection
+3. **ErrorMessageBuilder**: Shows partial files in error messages
+4. **Generator Templates**: Dynamic route discovery and first-run logic
+5. **ChangeDetector**: Asset detection and improved partial impact analysis
+
+### Performance Improvements
+
+1. **Page Scanning Cache**: Eliminates duplicate scans
+2. **Smart Change Detection**: Only tests affected pages
+3. **First-Run Optimization**: Faster initial setup
+4. **Reduced Wait Times**: Faster Capybara operations
 
 ---
 
@@ -304,4 +445,22 @@ ci:
 3. **Performance Monitoring**: Track check performance
 4. **IDE Integration**: VS Code/IntelliJ plugins
 5. **CI/CD Templates**: Pre-built GitHub Actions, CircleCI configs
+6. **Parallel Check Execution**: Run checks in parallel for faster results
+7. **Incremental Reports**: Show only new issues since last run
 
+---
+
+## Migration Guide
+
+### From 1.4.x to 1.5.0
+
+1. **No breaking changes**: Fully backward compatible
+2. **Automatic benefits**: Existing installations get improved view detection automatically
+3. **Generator update**: Re-run `rails generate rails_a11y:install` to get latest spec template
+4. **CSV gem**: If using Ruby 3.3+, add `gem 'csv'` to Gemfile (generator handles this)
+5. **Config update**: `heading_hierarchy` renamed to `heading` in config (backward compatible)
+
+---
+
+**Architecture Version**: 1.5.0  
+**Last Updated**: 2025-11-19

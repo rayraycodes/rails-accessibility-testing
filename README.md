@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.4.3
+**Current Version:** 1.5.0
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -19,16 +19,40 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 
 ## ✨ Features
 
+### Core Capabilities
 - 🚀 **Zero Configuration** - Works out of the box with smart defaults
 - 🎯 **11+ Comprehensive Checks** - WCAG 2.1 AA aligned
-- 📍 **File Location Hints** - Know exactly which view file to fix
+- 📍 **Precise File Location** - Know exactly which view file or partial to fix
 - 🔧 **Actionable Error Messages** - Code examples showing how to fix issues
-- ⚡ **Smart Change Detection** - Only runs when relevant code changes
 - 🎨 **Beautiful CLI** - Human-readable and JSON reports
 - 🔌 **Rails Generator** - One command setup
 - 🧪 **RSpec & Minitest** - Works with both test frameworks
 - ⚙️ **YAML Configuration** - Profile-based config (dev/test/CI)
-- 📚 **Comprehensive Guides** - Learn as you go
+
+### 🆕 Version 1.5.0 Highlights
+
+#### Smart View File Detection
+- **Intelligent matching**: Automatically finds view files even when action names don't match (e.g., `search` action → `search_result.html.erb`)
+- **Controller directory scanning**: Searches all view files to find the correct template
+- **Fuzzy matching**: Handles variations and naming conventions
+
+#### Advanced Partial Detection
+- **Automatic partial discovery**: Scans view files to detect all rendered partials
+- **Multi-location search**: Finds partials in controller dirs, `shared/`, and `layouts/`
+- **Namespaced support**: Handles paths like `layouts/navbar` or `shared/forms/input`
+- **Element-to-partial mapping**: Shows exact partial file when issues are found
+
+#### Performance Optimizations
+- **Page scanning cache**: Prevents duplicate scans of the same page
+- **Smart change detection**: Only tests pages when relevant files change
+- **First-run optimization**: Tests all pages initially, then only changed files
+- **Asset change detection**: Detects CSS/JS changes and their impact
+
+#### Enhanced Developer Experience
+- **Friendly test summaries**: Clear passed/failed/skipped counts with reasons
+- **Progress indicators**: Real-time feedback during checks
+- **Cleaner output**: Suppressed verbose skipped test messages
+- **Better error context**: Shows view files, partials, and element details
 
 ## 🚀 Quick Start
 
@@ -39,14 +63,16 @@ Add to your `Gemfile`:
 ```ruby
 group :development, :test do
   gem 'rails_accessibility_testing'
+  gem 'rspec-rails', '~> 8.0'  # Required for system specs
   gem 'axe-core-capybara', '~> 4.0'
   gem 'capybara', '~> 3.40'
   gem 'selenium-webdriver', '~> 4.0'
-  gem 'webdrivers', '~> 5.0'  # Optional but recommended for automatic driver management
+  gem 'webdrivers', '~> 5.0'  # Optional but recommended
+  gem 'csv'  # Required for Ruby 3.3+ (CSV removed from standard library in Ruby 3.4)
 end
 ```
 
-**Important:** You must explicitly add `selenium-webdriver` to your Gemfile. It's not automatically included as a dependency. The gem has minimal dependencies - you control your own driver setup.
+**Important:** You must explicitly add `selenium-webdriver` and `csv` (for Ruby 3.3+) to your Gemfile. The gem has minimal dependencies - you control your own driver setup.
 
 Then run:
 
@@ -65,7 +91,9 @@ rails generate rails_a11y:install
 This creates:
 - `config/initializers/rails_a11y.rb` - Configuration
 - `config/accessibility.yml` - Check settings
+- `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that dynamically tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
+- Updates `Procfile.dev` with accessibility watch command (if present)
 
 ### Setup (Option 2: Manual)
 
@@ -100,7 +128,7 @@ require 'rails_helper'
 RSpec.describe 'Home Page Accessibility', type: :system do
   it 'loads successfully and passes comprehensive accessibility checks' do
     visit root_path
-    expect(page).to have_content('Biorepository').or have_content('Welcome')
+    expect(page).to have_content('Welcome')
     
     # Run comprehensive accessibility checks
     check_comprehensive_accessibility
@@ -111,25 +139,22 @@ end
 
 **Accessibility checks run automatically after each `visit` in system specs!**
 
-#### Continuous Testing with Procfile (Recommended for Development)
+### All Pages Accessibility Spec
 
-For continuous accessibility checking during development, add to your `Procfile.dev`:
+The generator creates `spec/system/all_pages_accessibility_spec.rb` which automatically tests all GET routes in your application. The spec:
 
-```procfile
-web: bin/rails server
-css: bin/rails dartsass:watch
-a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
-```
+- **Dynamically discovers routes** at runtime - works for any Rails app
+- **Smart change detection** - Only tests pages when their related files (views, controllers, helpers, CSS/JS) have changed
+- **First-run optimization** - Tests all pages on first run, then only changed files
+- **Intelligent skipping** - Skips routes that require authentication, have errors, or aren't accessible
+- **Friendly summaries** - Shows passed/failed/skipped counts with clear reasons
 
-Then run:
-
-```bash
-bin/dev
-```
-
-This will automatically run accessibility checks every 30 seconds on all `*_accessibility_spec.rb` files, giving you continuous feedback as you develop!
-
-📖 **[See the full System Specs Guide](GUIDES/system_specs_for_accessibility.md)** for detailed examples and best practices.
+The spec automatically:
+- Tests all GET routes (filters out API, internal Rails routes)
+- Handles routes with parameters by substituting test values
+- Detects view files even when action names don't match
+- Shows which files changed and which pages are affected
+- Provides helpful tips and next steps
 
 ### Automatic Checks
 
@@ -169,6 +194,18 @@ it "meets all accessibility standards" do
 end
 ```
 
+### Continuous Development Testing
+
+Add to your `Procfile.dev`:
+
+```ruby
+web: $(bundle show rails_accessibility_testing)/exe/rails_server_safe
+css: bin/rails dartsass:watch
+a11y: while true; do bin/check_a11y_changes && (test -f bin/rspec && bin/rspec spec/system/*_accessibility_spec.rb --format progress --no-profile || bundle exec rspec spec/system/*_accessibility_spec.rb --format progress --no-profile) 2>&1 | grep -v "^[[:space:]]*[0-9]*)[[:space:]]*All Pages Accessibility checks accessibility" | grep -v "# Skipping" || echo '⏭️  No changes detected, skipping tests'; sleep 30; done
+```
+
+This runs accessibility tests every 30 seconds, but only when files have changed!
+
 ### CLI Usage
 
 Run checks against URLs or Rails routes:
@@ -196,14 +233,14 @@ The gem automatically runs **11 comprehensive accessibility checks**:
 
 1. ✅ **Form Labels** - All form inputs have associated labels
 2. ✅ **Image Alt Text** - All images have descriptive alt attributes
-3. ✅ **Interactive Elements** - Buttons, links have accessible names
-4. ✅ **Heading Hierarchy** - Proper h1-h6 structure
+3. ✅ **Interactive Elements** - Buttons, links have accessible names (including links with images that have alt text)
+4. ✅ **Heading Hierarchy** - Proper h1-h6 structure (detects missing h1, multiple h1s, skipped levels, and h2+ without h1)
 5. ✅ **Keyboard Accessibility** - All interactive elements keyboard accessible
 6. ✅ **ARIA Landmarks** - Proper use of ARIA landmark roles
 7. ✅ **Form Error Associations** - Errors linked to form fields
 8. ✅ **Table Structure** - Tables have proper headers
 9. ✅ **Duplicate IDs** - No duplicate ID attributes
-10. ✅ **Skip Links** - Skip navigation links present
+10. ✅ **Skip Links** - Skip navigation links present (detects various patterns)
 11. ✅ **Color Contrast** - Text meets contrast requirements (optional)
 
 ## ⚙️ Configuration
@@ -221,7 +258,7 @@ checks:
   form_labels: true
   image_alt_text: true
   interactive_elements: true
-  heading_hierarchy: true
+  heading: true  # Note: renamed from heading_hierarchy in 1.5.0
   keyboard_accessibility: true
   aria_landmarks: true
   form_errors: true
@@ -268,7 +305,7 @@ end
 
 ## 📋 Example Error Output
 
-When accessibility issues are found, you get detailed, actionable errors:
+When accessibility issues are found, you get detailed, actionable errors with precise file locations:
 
 ```
 ======================================================================
@@ -276,9 +313,10 @@ When accessibility issues are found, you get detailed, actionable errors:
 ======================================================================
 
 📄 Page Being Tested:
-   URL: http://localhost:3000/
-   Path: /
-   📝 Likely View File: app/views/shared/_header.html.erb
+   URL: http://localhost:3000/items/search
+   Path: /items/search
+   📝 View File: app/views/items/search_result.html.erb
+   📝 Partial: app/views/layouts/_advance_search.html.erb
 
 📍 Element Details:
    Tag: <img>
@@ -298,9 +336,39 @@ When accessibility issues are found, you get detailed, actionable errors:
    💡 Best Practice: All images must have alt attribute.
       Use empty alt="" only for purely decorative images.
 
-📖 WCAG Reference: https://www.w3.org/WAI/WCAG21/Understanding/
+📖 WCAG Reference: https://www.w3.org/WAI/WCAG21/Understanding/non-text-content.html
 ======================================================================
 ```
+
+**Notice:** The error shows both the main view file (`search_result.html.erb`) and the partial where the issue actually occurs (`_advance_search.html.erb`). This makes fixing issues much faster!
+
+## 🚀 Performance Features
+
+### Smart Change Detection
+
+The gem automatically detects when files change and only tests affected pages:
+
+- **View files**: Tests pages when their view files change
+- **Partials**: Tests pages that render changed partials
+- **Controllers**: Tests all routes for a controller when the controller changes
+- **Helpers**: Tests all pages when helpers change (they can affect any view)
+- **Assets**: Tests all pages when CSS/JS changes (can affect accessibility globally)
+
+### Page Scanning Cache
+
+Prevents duplicate scans of the same page during a test run:
+
+- **Automatic caching**: Each page is scanned once per test suite execution
+- **Efficient tracking**: Uses page path or URL as cache key
+- **Silent skipping**: Already-scanned pages are skipped without output
+- **Manual reset**: Use `reset_scanned_pages_cache` if needed
+
+### First-Run Optimization
+
+- **Initial baseline**: Tests all pages on first run to establish baseline
+- **Subsequent runs**: Only tests changed files for faster feedback
+- **Marker file**: Creates `.rails_a11y_initialized` to track first run
+- **Force all pages**: Set `TEST_ALL_PAGES=true` to test all pages anytime
 
 ## 📚 Documentation
 
@@ -337,9 +405,12 @@ View at `doc/index.html`
 
 Rails Accessibility Testing is built with a clean, modular architecture:
 
-- **Rule Engine** - Evaluates accessibility checks
-- **Check Definitions** - WCAG-aligned check implementations
+- **Rule Engine** - Evaluates accessibility checks with configurable profiles
+- **Check Definitions** - WCAG-aligned check implementations (11+ checks)
 - **Violation Collector** - Aggregates and formats violations
+- **View File Detection** - Intelligent detection of view files and partials
+- **Change Detector** - Smart detection of file changes and their impact
+- **Page Scanning Cache** - Prevents duplicate scans for performance
 - **Rails Integration** - Railtie, RSpec, Minitest helpers
 - **CLI** - Command-line interface for URL/route scanning
 - **Configuration** - YAML-based config with profiles
@@ -350,13 +421,42 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 
 - Ruby 3.0+ (3.1+ recommended)
 - Rails 6.0+ (7.1+ recommended)
-- RSpec Rails 6.0+ (for RSpec) or Minitest (for Minitest)
+- **RSpec Rails 6.0+ (required for system specs)** or Minitest (for Minitest)
 - Capybara 3.0+ (provided by your project)
 - selenium-webdriver 4.0+ (provided by your project, for system specs)
 - webdrivers (optional, provided by your project, for automatic driver management)
+- **csv gem** (required for Ruby 3.3+, as CSV is removed from standard library in Ruby 3.4)
 - Chrome/Chromium browser
 
-**Note:** As of version 1.2.0, the gem has minimal dependencies. You provide and configure Capybara, selenium-webdriver, and webdrivers in your own Gemfile, giving you full control over your test driver setup.
+**Note:** The generator creates system specs that require `rspec-rails`. If you're using Minitest, you'll need to manually create your accessibility tests.
+
+**Note:** As of version 1.2.0, the gem has minimal dependencies. You provide and configure Capybara, selenium-webdriver, webdrivers, and csv in your own Gemfile, giving you full control over your test driver setup.
+
+## 🆕 What's New in 1.5.0
+
+### Major Improvements
+
+1. **Smart View File Detection**
+   - Automatically finds view files even when action names don't match
+   - Scans controller directories intelligently
+   - Handles edge cases and naming variations
+
+2. **Advanced Partial Detection**
+   - Scans view files to discover all rendered partials
+   - Maps accessibility issues to exact partial files
+   - Supports namespaced partials and multiple locations
+
+3. **Performance Optimizations**
+   - Page scanning cache prevents duplicate work
+   - Smart change detection only tests affected pages
+   - First-run optimization for faster initial setup
+
+4. **Enhanced Developer Experience**
+   - Friendly test summaries with clear counts and reasons
+   - Better error messages with precise file locations
+   - Cleaner output with suppressed verbose messages
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 ## 🤝 Contributing
 

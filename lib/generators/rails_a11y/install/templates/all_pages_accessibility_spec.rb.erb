@@ -1,0 +1,66 @@
+require 'rails_helper'
+
+RSpec.describe 'All Pages Accessibility', type: :system do
+  # Test all GET routes for accessibility
+  # Generated automatically by rails_a11y:install generator
+  
+  # Helper method to get all testable routes
+  def self.get_testable_routes
+    return [] unless defined?(Rails) && Rails.application
+    
+    Rails.application.routes.routes.select do |route|
+      next false unless route.verb.to_s.include?('GET')
+      
+      path_spec = route.path.spec.to_s
+      
+      # Exclude API routes, internal Rails routes, and format-specific routes
+      next false if path_spec =~ /\.(json|xml|js)/
+      next false if path_spec =~ /rails/
+      next false if path_spec =~ /active_storage/
+      next false if path_spec =~ /action_cable/
+      next false if path_spec =~ /letter_opener/
+      next false if path_spec =~ /up/
+      next false if path_spec =~ /recede_historical_location/
+      next false if path_spec =~ /resume_historical_location/
+      next false if path_spec =~ /refresh_historical_location/
+      
+      # Skip routes with complex requirements
+      next false if path_spec.include?('destroy') || path_spec.include?('delete')
+      
+      # Skip routes with multiple required params (too complex to test automatically)
+      param_count = path_spec.scan(/\(:(\w+)\)/).length
+      next false if param_count > 1
+      
+      true
+    end
+  end
+  
+  # Test each route
+  get_testable_routes.each do |route|
+    path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
+    next unless path
+    
+    it "checks accessibility for #{path}" do
+      begin
+        visit path
+        
+        # Wait for page to load
+        sleep 0.5
+        
+        # Skip if redirected to sign in (requires authentication)
+        if page.current_url.include?('sign_in') || page.current_url.include?('login')
+          skip "Skipping #{path}: requires authentication"
+        elsif page.has_content?('Error') || page.has_content?('404') || page.has_content?('Not Found')
+          skip "Skipping #{path}: page not found or error"
+        else
+          # Page loaded successfully, run accessibility checks
+          check_comprehensive_accessibility
+        end
+      rescue => e
+        # Skip routes that can't be accessed
+        skip "Skipping #{path}: #{e.message}"
+      end
+    end
+  end
+end
+

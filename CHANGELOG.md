@@ -5,6 +5,123 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-11-19
+
+### 🎉 Major Release: Enhanced View Detection & Performance Optimizations
+
+This release introduces significant improvements to view file detection, partial scanning, performance optimizations, and developer experience enhancements.
+
+### Added
+
+#### Smart View File Detection
+- **Intelligent view file matching**: Automatically detects view files even when action names don't match view file names (e.g., `search` action → `search_result.html.erb`)
+- **Controller directory scanning**: Scans all view files in controller directories to find matching templates
+- **Fuzzy matching**: Prefers files that start with the action name, handles variations like `search_result`, `search_results`, etc.
+- **Single view fallback**: If a controller has only one view file, automatically uses it (useful for single-action controllers)
+
+#### Advanced Partial Detection System
+- **Automatic partial discovery**: Scans view files to detect all rendered partials using multiple pattern matching
+- **Partial location detection**: Finds partials in controller directories, `shared/`, and `layouts/` directories
+- **Namespaced partial support**: Handles partials with paths like `layouts/navbar` or `shared/forms/input`
+- **Element-to-partial mapping**: When an accessibility issue is found, automatically determines if it's in a partial and shows the correct file path
+- **Multiple render pattern support**: Detects partials rendered via `render 'partial'`, `render partial: 'partial'`, ERB syntax, and more
+
+#### Performance Optimizations
+- **Page scanning cache**: Prevents duplicate accessibility scans of the same page during a test run
+- **Smart cache key**: Uses page path (preferred) or URL as cache key for efficient tracking
+- **Silent skip for cached pages**: Already-scanned pages are skipped silently without output
+- **Cache reset helper**: `reset_scanned_pages_cache` method for testing or forced rescans
+
+#### Change Detection Enhancements
+- **First-run detection**: Automatically tests all pages on first run, then only changed files on subsequent runs
+- **Marker file system**: Creates `.rails_a11y_initialized` marker file to track first run status
+- **Asset change detection**: Now detects changes in CSS (`app/assets/`) and JavaScript (`app/javascript/`) files
+- **Smart partial impact analysis**: When a partial changes, only tests pages that actually render that partial
+- **Layout vs partial distinction**: Main layout files trigger full retest, while specific partials only affect pages that use them
+- **Improved route-to-view mapping**: Better handling of routes with `GET|POST` verbs and complex route parameters
+
+#### Enhanced Error Reporting
+- **Accurate view file paths**: Error messages now show the exact view file or partial where issues occur
+- **Partial context in errors**: When an issue is in a partial, the error message shows both the partial file and the parent view
+- **Better route recognition**: Improved mapping of URLs to view files using Rails route recognition
+- **View file detection fallbacks**: Multiple fallback strategies ensure view files are found even in edge cases
+
+#### Developer Experience Improvements
+- **Friendly test summaries**: Enhanced summary output with passed/failed/skipped counts and reasons
+- **Progress indicators**: Real-time progress feedback during accessibility checks
+- **Suppressed verbose output**: Cleaner test output with less noise from skipped tests
+- **Timestamp formatting**: Human-readable timestamps (HH:MM:SS) in reports instead of full dates
+- **CSV warning suppression**: Automatic suppression of Ruby 3.3+ CSV deprecation warnings
+- **Better skip reasons**: Clear explanations for why tests are skipped (authentication required, page not found, etc.)
+
+#### Generator Enhancements
+- **Dynamic route discovery**: Generated `all_pages_accessibility_spec.rb` now dynamically discovers all GET routes at runtime
+- **Generic spec template**: Works for any Rails app without project-specific customization
+- **Smart Procfile.dev integration**: Automatically updates `Procfile.dev` with `rails_server_safe` for safe server management
+- **Conditional test execution**: Only runs tests when relevant files have changed
+- **First-run logic**: Ensures all pages are tested on initial run, then optimizes for subsequent runs
+
+#### Infrastructure Improvements
+- **Rails server safe wrapper**: New `rails_server_safe` executable prevents Foreman from terminating all processes when server is already running
+- **Improved Procfile.dev command**: More robust `a11y` command with better error handling and output filtering
+- **Better RSpec integration**: Enhanced `after(:suite)` hooks for comprehensive test summaries
+- **FactoryBot compatibility**: Conditional FactoryBot inclusion to prevent errors when not present
+
+### Changed
+
+#### Heading Check Improvements
+- **Renamed to `HeadingCheck`**: More comprehensive check covering all WCAG 2.1 AA heading requirements
+- **Multiple h1 detection**: Now correctly detects and reports multiple `<h1>` tags as errors (not warnings)
+- **Comprehensive heading validation**: Checks for missing h1, skipped heading levels, empty headings, and headings with images without alt text
+- **Better error messages**: More specific remediation steps for different heading hierarchy issues
+
+#### Skip Link Detection
+- **Enhanced pattern matching**: Detects skip links using multiple patterns (`skip-link`, `skiplink`, `href="#main"`, `href="#maincontent"`, etc.)
+- **Flexible selector support**: Works with various CSS classes and ID patterns commonly used for skip links
+
+#### Accessible Name Detection
+- **Image alt text in links**: Links containing images now properly use the image's alt text as the accessible name
+- **Better ARIA label handling**: Improved detection of accessible names via `aria-label` and `aria-labelledby`
+
+#### Error Message Formatting
+- **Unified output format**: Consistent error and warning formatting with timestamps and context
+- **Centralized reporting**: Errors shown first, then warnings, then success messages
+- **Removed confusing messages**: Eliminated "passed with warnings" message for clearer output
+
+### Fixed
+
+- **View file detection for `/items/search`**: Fixed issue where routes like `/items/search` (action: `search`, view: `search_result.html.erb`) weren't being detected
+- **Partial detection in layouts**: Fixed issue where partials in `layouts/` directory weren't being properly detected
+- **Change detection false positives**: Fixed issue where changing one partial was marking too many pages as affected
+- **Route parameter handling**: Better handling of routes with `GET|POST` verbs and multiple parameters
+- **CSV warnings in test environment**: Suppressed Ruby 3.3+ CSV deprecation warnings in both application and test environments
+- **Test result tracking**: Fixed issue where tests were showing "all passed" even when errors were present
+- **RSpec hook syntax**: Fixed `NoMethodError` with `RSpec.after(:suite)` by using correct `RSpec.configure` syntax
+- **FactoryBot loading**: Fixed `NameError` when FactoryBot is not present in the project
+
+### Improved
+
+- **Test execution speed**: Removed unnecessary `sleep` calls and reduced Capybara wait times
+- **Output readability**: Better formatting, emojis, and visual hierarchy in test output
+- **Documentation**: Comprehensive updates to README, ARCHITECTURE, and guides
+- **Code organization**: Better separation of concerns with `PartialDetection` module
+- **Error handling**: More robust error handling throughout the codebase
+
+### Technical Details
+
+- **New module**: `AccessibilityHelper::PartialDetection` for reusable partial detection logic
+- **Enhanced `BaseCheck`**: Now includes partial detection methods for better view file identification
+- **Cache mechanism**: Module-level `@scanned_pages` hash for efficient page tracking
+- **Improved `ChangeDetector`**: Enhanced logic for detecting file changes and their impact on pages
+- **Better route recognition**: Uses `Rails.application.routes.recognize_path` for accurate route-to-view mapping
+
+### Migration Notes
+
+- **No breaking changes**: This release is fully backward compatible
+- **Automatic upgrades**: Existing installations will automatically benefit from improved view detection
+- **Generator updates**: Re-running `rails generate rails_a11y:install` will update to the latest spec template
+- **CSV gem**: If using Ruby 3.3+, explicitly add `gem 'csv'` to your Gemfile (generator handles this)
+
 ## [1.4.3] - 2025-11-19
 
 ### Added
@@ -184,6 +301,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.5.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.0
 [1.4.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.3
 [1.4.2]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.2
 [1.4.1]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.1

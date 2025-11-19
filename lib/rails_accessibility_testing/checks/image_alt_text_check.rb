@@ -15,14 +15,14 @@ module RailsAccessibilityTesting
       def check
         violations = []
         
+        # Use native attribute access instead of JavaScript evaluation for better performance
         page.all('img', visible: :all).each do |img|
-          has_alt_attribute = page.evaluate_script("arguments[0].hasAttribute('alt')", img.native)
-          # Get alt value - might be nil, empty string, or actual text
-          alt_value = img[:alt] || ""
-          # Also check via JavaScript to be sure
-          alt_value_js = page.evaluate_script("arguments[0].getAttribute('alt')", img.native) || ""
+          # Get alt value directly from Capybara element (faster than JavaScript)
+          alt_value = img[:alt]
+          # Check if alt attribute exists (nil means missing, empty string means present but empty)
+          has_alt_attribute = img.native.attribute('alt') != nil rescue false
           
-          if has_alt_attribute == false
+          if !has_alt_attribute
             element_ctx = element_context(img)
             
             violations << violation(
@@ -31,7 +31,7 @@ module RailsAccessibilityTesting
               wcag_reference: "1.1.1",
               remediation: generate_remediation(element_ctx)
             )
-          elsif (alt_value.blank? || alt_value_js.blank?) && has_alt_attribute
+          elsif alt_value.blank? && has_alt_attribute
             # Image has alt attribute but it's empty - warn about this
             # Empty alt is valid for decorative images, but we should check if it's actually decorative
             element_ctx = element_context(img)

@@ -116,7 +116,7 @@ module RailsAccessibilityTesting
             'form_labels' => true,
             'image_alt_text' => true,
             'interactive_elements' => true,
-            'heading_hierarchy' => true,
+            'heading' => true,
             'keyboard_accessibility' => true,
             'aria_landmarks' => true,
             'form_errors' => true,
