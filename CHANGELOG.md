@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2025-01-XX
+
+### Added
+- Comprehensive driver setup documentation for Capybara and Selenium WebDriver
+- Explicit `selenium-webdriver` gem requirement in all Gemfile examples
+- Chrome/Chromium installation instructions for macOS, Linux, and Windows
+- Troubleshooting section covering common errors including `DriverFinder` issues
+- Version compatibility table with recommended and minimum versions
+- Rails 8 specific setup notes and requirements
+
+### Improved
+- Enhanced getting started guides with complete driver configuration examples
+- Better documentation for Rails 8 compatibility and `driven_by` method usage
+- Clearer instructions for resolving `uninitialized constant Selenium::WebDriver::DriverFinder` errors
+- More comprehensive setup instructions covering all required dependencies
+
 ## [1.4.2] - 2025-11-18
 
 ### Added
@@ -168,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.4.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.3
 [1.4.2]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.2
 [1.4.1]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.1
 [1.4.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.0
