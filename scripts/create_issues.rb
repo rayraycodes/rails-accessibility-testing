@@ -202,8 +202,22 @@ def main
       puts "✅ ##{result[:number]}"
       created << { number: result[:number], url: result[:url], title: title }
     else
-      puts "❌ Failed: #{result[:error]}"
-      failed << { title: title, error: result[:error] }
+      # If failed due to labels (422 error), try again without labels
+      if result[:code].to_i == 422 && result[:error].to_s.downcase.include?('label')
+        print "⚠️  Label error, retrying without labels... "
+        $stdout.flush
+        result = create_issue(title, body, [])
+        if result[:success]
+          puts "✅ ##{result[:number]}"
+          created << { number: result[:number], url: result[:url], title: title }
+        else
+          puts "❌ Still failed: #{result[:error]}"
+          failed << { title: title, error: result[:error] }
+        end
+      else
+        puts "❌ Failed: #{result[:error]}"
+        failed << { title: title, error: result[:error] }
+      end
     end
     
     # Rate limiting: GitHub allows 5000 requests/hour, but be nice
