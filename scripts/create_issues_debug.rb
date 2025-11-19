@@ -42,14 +42,14 @@ current_issue = nil
 
 File.readlines(issues_file).each_with_index do |line, line_num|
   # Detect section headers
-  if line.match?(/^### (.+)$/)
-    current_section = $1.strip
+  if match = line.match(/^### (.+)$/)
+    current_section = match[1].strip
     puts "📂 Section: #{current_section} (line #{line_num + 1})"
     next
   end
   
   # Detect issue number and title
-  if line.match?(/^\d+\. \*\*(.+?)\*\*/)
+  if match = line.match(/^\d+\. \*\*(.+?)\*\*/)
     # Save previous issue if exists
     if current_issue
       issues << current_issue
@@ -57,7 +57,7 @@ File.readlines(issues_file).each_with_index do |line, line_num|
     end
     
     current_issue = {
-      title: $1.strip,
+      title: match[1].strip,
       body: [],
       section: current_section || "Unknown",
       labels: ['enhancement']
@@ -69,7 +69,7 @@ File.readlines(issues_file).each_with_index do |line, line_num|
   # Collect body lines
   if current_issue && line.strip.length > 0 && !line.match?(/^#/)
     clean_line = line.gsub(/^\s*-\s*/, '').strip
-    current_issue[:body] << clean_line if clean_line.length > 0
+    current_issue[:body] << clean_line if clean_line.length > 0 && !clean_line.empty?
   end
 end
 
