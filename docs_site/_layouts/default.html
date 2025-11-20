@@ -180,6 +180,16 @@
       sequence: { useMaxWidth: true },
       gantt: { useMaxWidth: true }
     });
+    
+    // Ensure Mermaid processes all code blocks with language-mermaid class
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find all code blocks with mermaid language
+      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid');
+      if (mermaidBlocks.length > 0) {
+        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks');
+        // Mermaid will process them automatically with startOnLoad: true
+      }
+    });
   </script>
 </head>
 

@@ -17,6 +17,13 @@ markdown: kramdown
 highlighter: rouge
 theme: minima
 
+# Kramdown settings for Mermaid support
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    disable: false
+  input: GFM
+
 # Navigation
 navigation:
   - title: Home

@@ -73,9 +73,18 @@ jobs:
             echo "⚠️  Warning: Mermaid.js script not found in architecture.html"
           fi
           
-          # Count Mermaid diagram blocks
+          # Count Mermaid diagram blocks in source
           MERMAID_COUNT=$(grep -c '```mermaid' architecture.md 2>/dev/null || echo "0")
           echo "📊 Found $MERMAID_COUNT Mermaid diagram blocks in architecture.md"
+          
+          # Verify Mermaid code blocks are in HTML output
+          MERMAID_HTML_COUNT=$(grep -c 'language-mermaid\|class="language-mermaid"' _site/architecture.html 2>/dev/null || echo "0")
+          echo "📊 Found $MERMAID_HTML_COUNT Mermaid code blocks in architecture.html"
+          
+          if [ "$MERMAID_HTML_COUNT" = "0" ] && [ "$MERMAID_COUNT" != "0" ]; then
+            echo "⚠️  Warning: Mermaid diagrams in markdown but not found in HTML output"
+            echo "   This may indicate a markdown processing issue"
+          fi
           
           # Verify key pages were built
           for page in index.html architecture.html getting_started.html; do
