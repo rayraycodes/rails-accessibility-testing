@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Shared examples for accessibility testing
 # Automatically available when rails_accessibility_testing is required
 
