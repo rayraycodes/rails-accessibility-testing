@@ -52,9 +52,11 @@ jobs:
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
           CURRENT_YEAR=$(date +%Y)
           
+          echo "🔨 Building Jekyll site with baseurl: /$REPO_NAME"
+          
           # Build Jekyll site (generates index.html from index.md)
           # Suppress Sass deprecation warnings (they're harmless)
-          bundle exec jekyll build --baseurl "/$REPO_NAME" --quiet 2>&1 | grep -v "DEPRECATION WARNING" || true
+          bundle exec jekyll build --baseurl "/$REPO_NAME" 2>&1 | grep -v "DEPRECATION WARNING" || true
           
           # Verify build completed and index.html was generated
           if [ ! -f "_site/index.html" ]; then
@@ -63,11 +65,33 @@ jobs:
           fi
           
           echo "✅ Jekyll build complete: _site/index.html generated"
+          
+          # Verify Mermaid.js is included in the layout
+          if grep -q "mermaid" _site/architecture.html 2>/dev/null; then
+            echo "✅ Mermaid.js script found in architecture.html"
+          else
+            echo "⚠️  Warning: Mermaid.js script not found in architecture.html"
+          fi
+          
+          # Count Mermaid diagram blocks
+          MERMAID_COUNT=$(grep -c "```mermaid" architecture.md 2>/dev/null || echo "0")
+          echo "📊 Found $MERMAID_COUNT Mermaid diagram blocks in architecture.md"
+          
+          # Verify key pages were built
+          for page in index.html architecture.html getting_started.html; do
+            if [ -f "_site/$page" ]; then
+              echo "✅ Page built: $page"
+            else
+              echo "⚠️  Warning: Page not found: $page"
+            fi
+          done
 
       - name: Prepare artifact
         run: |
           set -e
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
+          
+          echo "📦 Preparing artifact for deployment..."
           
           # Create artifact structure at root: $REPO_NAME/
           mkdir -p $REPO_NAME
@@ -80,6 +104,20 @@ jobs:
             echo "❌ Copy failed: index.html not found in $REPO_NAME/"
             exit 1
           fi
+          
+          # Verify architecture page with diagrams was copied
+          if [ -f "$REPO_NAME/architecture.html" ]; then
+            echo "✅ Architecture page copied: $REPO_NAME/architecture.html"
+            # Check file size (should be substantial if diagrams are included)
+            FILE_SIZE=$(wc -c < "$REPO_NAME/architecture.html")
+            echo "   File size: $FILE_SIZE bytes"
+          else
+            echo "⚠️  Warning: architecture.html not found in artifact"
+          fi
+          
+          # Count total HTML files
+          HTML_COUNT=$(find $REPO_NAME -name "*.html" | wc -l)
+          echo "📄 Total HTML files in artifact: $HTML_COUNT"
           
           echo "✅ Artifact prepared: $REPO_NAME/index.html ready for deployment"
 
@@ -97,9 +135,21 @@ jobs:
         if: success()
         run: |
           REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✅ Deployment successful!"
-          echo "URL: https://${{ github.repository_owner }}.github.io/$REPO_NAME/"
-          echo "Wait 1-2 minutes for propagation, then clear cache if needed."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📄 Documentation Site:"
+          echo "   https://${{ github.repository_owner }}.github.io/$REPO_NAME/"
+          echo ""
+          echo "📊 Architecture Page (with diagrams):"
+          echo "   https://${{ github.repository_owner }}.github.io/$REPO_NAME/architecture.html"
+          echo ""
+          echo "⏱️  Wait 1-2 minutes for propagation, then clear cache if needed."
+          echo ""
+          echo "💡 Mermaid diagrams will render automatically via client-side JavaScript"
+          echo ""
 
       - name: Check deployment status
         if: failure()
