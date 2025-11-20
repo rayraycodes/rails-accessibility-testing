@@ -5,7 +5,7 @@
 # Automatically configures accessibility testing for Rails system specs with
 # comprehensive checks and detailed error messages.
 #
-# @version 1.5.4
+# @version 1.5.5
 # @author Regan Maharjan
 #
 # @example Basic usage

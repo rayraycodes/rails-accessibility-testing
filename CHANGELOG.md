@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2024-11-20
+
+### Fixed
+- **Rails helper compatibility**: Fixed `blank?` and `present?` calls in checks to work without Rails (pure Ruby compatibility)
+- **Check compatibility with static scanning**: Fixed `FormLabelsCheck`, `InteractiveElementsCheck`, `HeadingCheck`, `ImageAltTextCheck`, and `FormErrorsCheck` to handle `nil` values correctly
+- **StaticElementAdapter**: Added `all` method to support nested element queries required by checks
+- **HeadingCheck**: Fixed image detection within headings for static scanning compatibility
+
+### Improved
+- **Error handling**: Better handling of `nil` values in all checks for static scanning
+- **Code robustness**: All checks now work seamlessly with both Capybara (dynamic) and Nokogiri (static) scanning
+
 ## [1.5.4] - 2024-11-20
 
 ### Changed
@@ -374,6 +386,7 @@ This release introduces significant improvements to view file detection, partial
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.5.5]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.5
 [1.5.4]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.4
 [1.5.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.3
 [1.5.2]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.2
