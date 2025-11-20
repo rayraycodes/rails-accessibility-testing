@@ -213,16 +213,16 @@ module RailsAccessibilityTesting
     @accessibility_warnings = []
     @in_comprehensive_check = true
     
-    # Show page being checked
+    # Show page being checked - simplified header
     page_path = safe_page_path || 'current page'
     page_url = safe_page_url || 'current URL'
+    view_file = determine_view_file(page_path, page_url, {})
+    
     puts "\n" + "="*70
-    puts "🔍 Scanning page for accessibility issues..."
+    puts "🔍 Scanning: #{view_file || page_path}"
     puts "="*70
-    puts "📍 Page: #{page_path}"
-    puts "🔗 URL: #{page_url}"
-    puts "="*70
-    puts ""
+    print "  Running checks"
+    $stdout.flush
     
     # Use RuleEngine to run checks from checks/ folder
     begin
@@ -309,8 +309,11 @@ module RailsAccessibilityTesting
       puts error_output
       $stdout.flush  # Flush immediately to ensure errors are visible
       
-      # Show warnings after errors (if any)
-      if @accessibility_warnings.any?
+      # Check if we're in live scanner mode (detect by checking caller)
+      is_live_scanner = caller.any? { |line| line.include?('a11y_live_scanner') }
+      
+      # Show warnings after errors (if any) - but skip in live scanner
+      if @accessibility_warnings.any? && !is_live_scanner
         warning_output = format_all_warnings(@accessibility_warnings)
         puts warning_output
         $stdout.flush
@@ -319,7 +322,7 @@ module RailsAccessibilityTesting
       # Summary - make it very clear
       puts "\n" + "="*70
       puts "📊 SUMMARY: Found #{error_count} ERROR#{'S' if error_count != 1}"
-      puts "   #{warning_count} warning#{'s' if warning_count != 1}" if warning_count > 0
+      puts "   #{warning_count} warning#{'s' if warning_count != 1}" if warning_count > 0 && !is_live_scanner
       puts "="*70
       $stdout.flush
       
@@ -327,15 +330,25 @@ module RailsAccessibilityTesting
       # Include error and warning counts in message so they can be extracted even if exception is caught
       raise "ACCESSIBILITY ERRORS FOUND: #{error_count} error(s), #{warning_count} warning(s) - see details above"
     elsif @accessibility_warnings.any?
-      # Only warnings, no errors - show warnings and indicate test passed with warnings
-      puts format_all_warnings(@accessibility_warnings)
-      puts "\n" + "="*70
-      puts "📊 SUMMARY: Test passed with #{@accessibility_warnings.length} warning#{'s' if @accessibility_warnings.length != 1}"
-      puts "   ✓ #{timestamp}"
-      puts "="*70
-      puts "\n✅ Accessibility checks completed with warnings (test passed, but please address warnings above)"
-      puts "   📄 Page: #{page_context_info[:path] || 'current page'}"
-      puts "   📝 View: #{page_context_info[:view_file] || 'unknown'}"
+      # Check if we're in live scanner mode - skip warnings in live scanner
+      is_live_scanner = caller.any? { |line| line.include?('a11y_live_scanner') }
+      
+      if !is_live_scanner
+        # Only warnings, no errors - show warnings and indicate test passed with warnings
+        puts format_all_warnings(@accessibility_warnings)
+        puts "\n" + "="*70
+        puts "📊 SUMMARY: Test passed with #{@accessibility_warnings.length} warning#{'s' if @accessibility_warnings.length != 1}"
+        puts "   ✓ #{timestamp}"
+        puts "="*70
+        puts "\n✅ Accessibility checks completed with warnings (test passed, but please address warnings above)"
+        puts "   📄 Page: #{page_context_info[:path] || 'current page'}"
+        puts "   📝 View: #{page_context_info[:view_file] || 'unknown'}"
+      else
+        # Live scanner - just show success
+        puts "\n" + "="*70
+        puts "✅ All checks passed (no errors)"
+        puts "="*70
+      end
     else
       # All checks passed with no errors and no warnings - show success message
       puts "📊 SUMMARY: All checks passed!"

@@ -288,14 +288,8 @@ def run_scanner
             save_scanned_page(path, timestamp)
             
             # Show that we detected a new page visit
-            visit_time = Time.at(timestamp)
-            puts "\n" + "🎯" + "="*69
-            puts "📥 NEW PAGE VISIT DETECTED"
-            puts "="*70
-            puts "   Path: #{path}"
-            puts "   URL: #{url}"
-            puts "   Visited at: #{visit_time.strftime('%H:%M:%S')}"
-            puts "   Starting scan..."
+            puts "\n" + "="*70
+            puts "📥 Scanning new page: #{path}"
             puts "="*70
             
             # Run check with URL info
