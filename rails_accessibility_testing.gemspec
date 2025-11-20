@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
   # Runtime dependencies
   # Only essential dependencies for RSpec system specs
   spec.add_dependency "axe-core-capybara", "~> 4.0"
+  spec.add_dependency "nokogiri", ">= 1.10"  # For static file scanning
   
   # Optional dependencies (users provide these in their own Gemfile)
   # - rspec-rails (for RSpec integration)

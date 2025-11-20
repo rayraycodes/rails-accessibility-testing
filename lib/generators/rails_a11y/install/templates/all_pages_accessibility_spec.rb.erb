@@ -1,22 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe 'All Pages Accessibility', type: :system do
-  # Test all view files for accessibility
+  # Test all view files for accessibility using static file scanning
   # Generated automatically by rails_a11y:install generator
-  
-  # Load config to determine scanning strategy
-  def self.scan_config
-    return { 'scan_strategy' => 'paths' } unless defined?(Rails) && Rails.application
-    
-    begin
-      require 'rails_accessibility_testing/config/yaml_loader'
-      profile = Rails.env.test? ? :test : :development
-      config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
-      { 'scan_strategy' => config['scan_strategy'] || 'paths' }
-    rescue StandardError
-      { 'scan_strategy' => 'paths' }
-    end
-  end
   
   # Helper method to get all view files (non-partials)
   def self.get_all_view_files
@@ -43,177 +29,123 @@ RSpec.describe 'All Pages Accessibility', type: :system do
     view_files.sort
   end
   
-  # Helper method to generate path directly from view file (faster than route iteration)
-  def self.generate_path_from_view_file(view_file)
-    return nil unless defined?(Rails) && Rails.application
+  # Format errors with file locations and line numbers
+  def format_static_errors(errors, warnings)
+    return "" if errors.empty? && warnings.empty?
     
-    # Extract controller and action from view file path
-    # Example: app/views/items/search_result.html.erb -> items#search_result
-    relative_path = view_file.sub(%r{^.*app/views/}, '').sub(/\.html\.(erb|haml|slim)$/, '')
-    parts = relative_path.split('/')
+    output = []
     
-    return nil if parts.empty?
+    # Group errors by file
+    errors_by_file = errors.group_by { |e| e[:file] }
+    warnings_by_file = warnings.group_by { |w| w[:file] }
     
-    controller = parts[0..-2].join('/')
-    action = File.basename(parts.last)
-    
-    # Use Rails URL helpers to generate path directly from controller/action
-    # This is faster than iterating through all routes
-    begin
-      # Try to generate URL using Rails URL helpers
-      # This uses Rails' optimized route generation
-      url_helper_name = "#{controller.gsub('/', '_')}_#{action}_path"
+    # Show errors first
+    if errors.any?
+      output << "\n" + "="*70
+      output << "❌ #{errors.length} error#{'s' if errors.length != 1} found"
+      output << "="*70
+      output << ""
       
-      # Handle namespaced controllers (e.g., admin/users -> admin_users)
-      url_helper_name = url_helper_name.gsub(/[^a-z0-9_]/, '_')
-      
-      # Try to use the URL helper if it exists
-      if Rails.application.routes.url_helpers.respond_to?(url_helper_name)
-        path = Rails.application.routes.url_helpers.send(url_helper_name)
-        return { path: path, controller: controller, action: action, view_file: view_file }
-      end
-      
-      # Fallback: Try with index if action might be index
-      if action != 'index'
-        index_helper_name = "#{controller.gsub('/', '_')}_index_path"
-        index_helper_name = index_helper_name.gsub(/[^a-z0-9_]/, '_')
-        if Rails.application.routes.url_helpers.respond_to?(index_helper_name)
-          # For non-index actions, we might need to construct differently
-          # Try the action path first
-        end
-      end
-      
-      # Alternative: Use url_for directly (most reliable)
-      begin
-        # Create a mock controller context to use url_for
-        path = Rails.application.routes.url_for(
-          controller: controller,
-          action: action,
-          only_path: true
-        )
-        return { path: path, controller: controller, action: action, view_file: view_file }
-      rescue StandardError => e
-        # url_for failed, try route matching as fallback
-      end
-      
-      # Last resort: Find route by matching controller/action
-      # This is slower but more reliable for edge cases
-      Rails.application.routes.routes.each do |route|
-        next unless route.verb.to_s.include?('GET')
+      errors_by_file.each_with_index do |(file_path, file_errors), file_index|
+        output << "" if file_index > 0
         
-        begin
-          route_params = route.defaults
-          route_controller = route_params[:controller]
-          route_action = route_params[:action]
+        output << "📝 #{file_path} (#{file_errors.length} error#{'s' if file_errors.length != 1})"
+        
+        file_errors.each do |error|
+          error_line = "   • #{error[:type]}"
           
-          # Match controller and action
-          if route_controller == controller && route_action == action
-            path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
-            return { path: path, controller: controller, action: action, view_file: view_file } if path
+          # Add line number if available
+          if error[:line]
+            error_line += " [Line #{error[:line]}]"
           end
-        rescue StandardError
-          next
+          
+          # Add element identifier
+          if error[:element][:id].present?
+            error_line += " [id: #{error[:element][:id]}]"
+          elsif error[:element][:href].present?
+            href_display = error[:element][:href].length > 30 ? "#{error[:element][:href][0..27]}..." : error[:element][:href]
+            error_line += " [href: #{href_display}]"
+          elsif error[:element][:src].present?
+            src_display = error[:element][:src].length > 30 ? "#{error[:element][:src][0..27]}..." : error[:element][:src]
+            error_line += " [src: #{src_display}]"
+          end
+          
+          output << error_line
         end
       end
-    rescue StandardError => e
-      # If all methods fail, return nil
+      
+      output << ""
+      output << "="*70
     end
     
-    nil
-  end
-  
-  # Helper method to get all testable routes (path-based strategy)
-  def self.get_testable_routes
-    return [] unless defined?(Rails) && Rails.application
-    
-    Rails.application.routes.routes.select do |route|
-      next false unless route.verb.to_s.include?('GET')
+    # Show warnings if any
+    if warnings.any?
+      output << "\n" + "="*70
+      output << "⚠️  #{warnings.length} warning#{'s' if warnings.length != 1} found"
+      output << "="*70
+      output << ""
       
-      path_spec = route.path.spec.to_s
-      
-      # Exclude API routes, internal Rails routes, and format-specific routes
-      next false if path_spec =~ /\.(json|xml|js)/
-      next false if path_spec =~ /rails/
-      next false if path_spec =~ /active_storage/
-      next false if path_spec =~ /action_cable/
-      next false if path_spec =~ /letter_opener/
-      next false if path_spec =~ /up/
-      next false if path_spec =~ /recede_historical_location/
-      next false if path_spec =~ /resume_historical_location/
-      next false if path_spec =~ /refresh_historical_location/
-      
-      # Skip routes with complex requirements
-      next false if path_spec.include?('destroy') || path_spec.include?('delete')
-      
-      # Skip routes with multiple required params (too complex to test automatically)
-      param_count = path_spec.scan(/\(:(\w+)\)/).length
-      next false if param_count > 1
-      
-      true
-    end
-  end
-  
-  # Determine which strategy to use and get test items
-  config = scan_config
-  strategy = config['scan_strategy'] || 'paths'
-  
-  if strategy == 'view_files'
-    # View-file-based scanning strategy - scan files directly (faster!)
-    view_files = get_all_view_files
-    
-    view_files.each do |view_file|
-      # Generate path directly from view file (faster than route iteration)
-      route_info = generate_path_from_view_file(view_file)
-      next unless route_info && route_info[:path]
-      
-      path = route_info[:path]
-      it "checks accessibility for #{view_file}" do
-        begin
-          visit path
+      warnings_by_file.each_with_index do |(file_path, file_warnings), file_index|
+        output << "" if file_index > 0
+        
+        output << "📝 #{file_path} (#{file_warnings.length} warning#{'s' if file_warnings.length != 1})"
+        
+        file_warnings.each do |warning|
+          warning_line = "   • #{warning[:type]}"
           
-          # Wait for page to load
-          sleep 0.5
-          
-          # Skip if redirected to sign in (requires authentication)
-          if page.current_url.include?('sign_in') || page.current_url.include?('login')
-            skip "Skipping #{view_file}: requires authentication"
-          elsif page.has_content?('Error') || page.has_content?('404') || page.has_content?('Not Found')
-            skip "Skipping #{view_file}: page not found or error"
-          else
-            # Page loaded successfully, run accessibility checks
-            check_comprehensive_accessibility
+          # Add line number if available
+          if warning[:line]
+            warning_line += " [Line #{warning[:line]}]"
           end
-        rescue => e
-          # Skip routes that can't be accessed
-          skip "Skipping #{view_file}: #{e.message}"
+          
+          # Add element identifier
+          if warning[:element][:id].present?
+            warning_line += " [id: #{warning[:element][:id]}]"
+          elsif warning[:element][:href].present?
+            href_display = warning[:element][:href].length > 30 ? "#{warning[:element][:href][0..27]}..." : warning[:element][:href]
+            warning_line += " [href: #{href_display}]"
+          elsif warning[:element][:src].present?
+            src_display = warning[:element][:src].length > 30 ? "#{warning[:element][:src][0..27]}..." : warning[:element][:src]
+            warning_line += " [src: #{src_display}]"
+          end
+          
+          output << warning_line
         end
       end
+      
+      output << ""
+      output << "="*70
+    end
+    
+    output.join("\n")
+  end
+  
+  # Scan all view files statically
+  view_files = get_all_view_files
+  
+  if view_files.empty?
+    it "no view files found to scan" do
+      skip "No view files found in app/views"
     end
   else
-    # Path-based scanning strategy (default)
-    get_testable_routes.each do |route|
-      path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
-      next unless path
-      
-      it "checks accessibility for #{path}" do
-        begin
-          visit path
+    view_files.each do |view_file|
+      it "scans #{view_file} for accessibility issues" do
+        require 'rails_accessibility_testing/static_file_scanner'
+        
+        scanner = RailsAccessibilityTesting::StaticFileScanner.new(view_file)
+        result = scanner.scan
+        
+        errors = result[:errors] || []
+        warnings = result[:warnings] || []
+        
+        if errors.any? || warnings.any?
+          puts format_static_errors(errors, warnings)
           
-          # Wait for page to load
-          sleep 0.5
-          
-          # Skip if redirected to sign in (requires authentication)
-          if page.current_url.include?('sign_in') || page.current_url.include?('login')
-            skip "Skipping #{path}: requires authentication"
-          elsif page.has_content?('Error') || page.has_content?('404') || page.has_content?('Not Found')
-            skip "Skipping #{path}: page not found or error"
-          else
-            # Page loaded successfully, run accessibility checks
-            check_comprehensive_accessibility
+          if errors.any?
+            raise "Found #{errors.length} accessibility error#{'s' if errors.length != 1} in #{view_file}"
           end
-        rescue => e
-          # Skip routes that can't be accessed
-          skip "Skipping #{path}: #{e.message}"
+        else
+          puts "✅ #{view_file}: No errors found"
         end
       end
     end
