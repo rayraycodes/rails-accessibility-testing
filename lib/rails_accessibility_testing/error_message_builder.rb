@@ -27,15 +27,20 @@ module RailsAccessibilityTesting
       # @param error_type [String] Type of accessibility error
       # @param element_context [Hash] Context about the element
       # @param page_context [Hash] Context about the page
+      # @param show_fixes [Boolean] Whether to show fix suggestions (default: true)
       # @return [String] Formatted error message
-      def build(error_type:, element_context:, page_context:)
-        [
+      def build(error_type:, element_context:, page_context:, show_fixes: true)
+        parts = [
           header(error_type),
           page_info(page_context),
-          element_info(element_context),
-          remediation_section(error_type, element_context),
-          footer
-        ].compact.join("\n")
+          element_info(element_context)
+        ]
+        
+        # Only add remediation section if show_fixes is true
+        parts << remediation_section(error_type, element_context) if show_fixes
+        
+        parts << footer
+        parts.compact.join("\n")
       end
 
       private

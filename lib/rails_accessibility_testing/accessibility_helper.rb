@@ -542,10 +542,23 @@ module RailsAccessibilityTesting
   # @param page_context [Hash] Context about the page being tested
   # @return [String] Formatted error message
   def build_error_message(error_type, element_context, page_context)
+    # Check config for show_fixes setting
+    show_fixes = true
+    begin
+      require 'rails_accessibility_testing/config/yaml_loader'
+      profile = defined?(Rails) && Rails.env.test? ? :test : :development
+      config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+      summary_config = config['summary'] || {}
+      show_fixes = summary_config.fetch('show_fixes', true)
+    rescue StandardError
+      # Use default if config can't be loaded
+    end
+    
     RailsAccessibilityTesting::ErrorMessageBuilder.build(
       error_type: error_type,
       element_context: element_context,
-      page_context: page_context
+      page_context: page_context,
+      show_fixes: show_fixes
     )
   end
 

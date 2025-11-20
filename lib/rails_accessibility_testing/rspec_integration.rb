@@ -142,16 +142,39 @@ module RailsAccessibilityTesting
         
         # Show overall summary after all tests complete
         config.after(:suite) do
+          # Check if summary should be shown
+          config_data = load_summary_config
+          return unless config_data['show_summary']
+          
           # Show summary if we tested any pages
           if @@accessibility_results && @@accessibility_results[:pages_tested].any?
-            show_overall_summary(@@accessibility_results)
+            show_overall_summary(@@accessibility_results, config_data)
           end
         end
       end
       
+      # Load summary configuration from YAML
+      def load_summary_config
+        require 'rails_accessibility_testing/config/yaml_loader'
+        profile = defined?(Rails) && Rails.env.test? ? :test : :development
+        config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+        summary_config = config['summary'] || {}
+        {
+          'show_summary' => summary_config.fetch('show_summary', true),
+          'errors_only' => summary_config.fetch('errors_only', false),
+          'show_fixes' => summary_config.fetch('show_fixes', true)
+        }
+      end
+      
       # Show overall summary of all pages tested
-      def show_overall_summary(results)
+      def show_overall_summary(results, config_data = nil)
         return unless results && results[:pages_tested].any?
+        
+        # Load config if not provided
+        config_data ||= load_summary_config
+        
+        # Filter out warnings if errors_only is true
+        errors_only = config_data['errors_only']
         
         puts "\n" + "="*80
         puts "📊 COMPREHENSIVE ACCESSIBILITY TEST REPORT"
@@ -161,11 +184,15 @@ module RailsAccessibilityTesting
         puts "   Total pages tested: #{results[:pages_tested].length}"
         puts "   ✅ Passed (no issues):  #{results[:pages_passed]} page#{'s' if results[:pages_passed] != 1}"
         puts "   ❌ Failed (errors):     #{results[:pages_failed]} page#{'s' if results[:pages_failed] != 1}"
-        puts "   ⚠️  Warnings only:      #{results[:pages_with_warnings]} page#{'s' if results[:pages_with_warnings] != 1}"
+        unless errors_only
+          puts "   ⚠️  Warnings only:      #{results[:pages_with_warnings]} page#{'s' if results[:pages_with_warnings] != 1}"
+        end
         puts ""
         puts "📋 Total Issues Across All Pages:"
         puts "   ❌ Total errors:   #{results[:total_errors]}"
-        puts "   ⚠️  Total warnings: #{results[:total_warnings]}"
+        unless errors_only
+          puts "   ⚠️  Total warnings: #{results[:total_warnings]}"
+        end
         puts ""
         
         # Show pages with errors (highest priority)
@@ -175,49 +202,53 @@ module RailsAccessibilityTesting
           pages_with_errors.each do |page|
             view_file = page[:view_file] || page[:path]
             puts "   • #{view_file}"
-            puts "     Errors: #{page[:errors]}#{", Warnings: #{page[:warnings]}" if page[:warnings] > 0}"
+            puts "     Errors: #{page[:errors]}#{", Warnings: #{page[:warnings]}" if page[:warnings] > 0 && !errors_only}"
             puts "     Path: #{page[:path]}" if page[:view_file] && page[:path] != view_file
           end
           puts ""
         end
         
-        # Show pages with warnings only
-        pages_with_warnings_only = results[:pages_tested].select { |p| p[:status] == :warning }
-        if pages_with_warnings_only.any?
-          puts "⚠️  Pages with Warnings Only (#{pages_with_warnings_only.length}):"
-          pages_with_warnings_only.each do |page|
-            view_file = page[:view_file] || page[:path]
-            puts "   • #{view_file}"
-            puts "     Warnings: #{page[:warnings]}"
-            puts "     Path: #{page[:path]}" if page[:view_file] && page[:path] != view_file
+        # Show pages with warnings only (only if not errors_only)
+        unless errors_only
+          pages_with_warnings_only = results[:pages_tested].select { |p| p[:status] == :warning }
+          if pages_with_warnings_only.any?
+            puts "⚠️  Pages with Warnings Only (#{pages_with_warnings_only.length}):"
+            pages_with_warnings_only.each do |page|
+              view_file = page[:view_file] || page[:path]
+              puts "   • #{view_file}"
+              puts "     Warnings: #{page[:warnings]}"
+              puts "     Path: #{page[:path]}" if page[:view_file] && page[:path] != view_file
+            end
+            puts ""
           end
-          puts ""
         end
         
-        # Show summary of pages that passed
-        pages_passed = results[:pages_tested].select { |p| p[:status] == :passed }
-        if pages_passed.any?
-          if pages_passed.length <= 15
-            puts "✅ Pages Passed All Checks (#{pages_passed.length}):"
-            pages_passed.each do |page|
-              puts "   ✓ #{page[:path]}"
+        # Show summary of pages that passed (only if not errors_only)
+        unless errors_only
+          pages_passed = results[:pages_tested].select { |p| p[:status] == :passed }
+          if pages_passed.any?
+            if pages_passed.length <= 15
+              puts "✅ Pages Passed All Checks (#{pages_passed.length}):"
+              pages_passed.each do |page|
+                puts "   ✓ #{page[:path]}"
+              end
+            else
+              puts "✅ #{pages_passed.length} pages passed all accessibility checks"
+              puts "   (Showing first 10):"
+              pages_passed.first(10).each do |page|
+                puts "   ✓ #{page[:path]}"
+              end
+              puts "   ... and #{pages_passed.length - 10} more"
             end
-          else
-            puts "✅ #{pages_passed.length} pages passed all accessibility checks"
-            puts "   (Showing first 10):"
-            pages_passed.first(10).each do |page|
-              puts "   ✓ #{page[:path]}"
-            end
-            puts "   ... and #{pages_passed.length - 10} more"
+            puts ""
           end
-          puts ""
         end
         
         # Final summary
         puts "="*80
         if results[:total_errors] > 0
           puts "❌ OVERALL STATUS: FAILED - #{results[:total_errors]} error#{'s' if results[:total_errors] != 1} found across #{results[:pages_failed]} page#{'s' if results[:pages_failed] != 1}"
-        elsif results[:total_warnings] > 0
+        elsif !errors_only && results[:total_warnings] > 0
           puts "⚠️  OVERALL STATUS: PASSED WITH WARNINGS - #{results[:total_warnings]} warning#{'s' if results[:total_warnings] != 1} found"
         else
           puts "✅ OVERALL STATUS: PASSED - All #{results[:pages_tested].length} page#{'s' if results[:pages_tested].length != 1} passed accessibility checks!"

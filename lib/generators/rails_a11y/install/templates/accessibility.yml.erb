@@ -6,6 +6,24 @@
 # WCAG compliance level (A, AA, AAA)
 wcag_level: AA
 
+# Summary configuration
+# Control how accessibility test summaries are displayed
+summary:
+  # Show summary at end of test suite (true/false)
+  show_summary: true
+  
+  # Show only errors in summary, hide warnings (true/false)
+  errors_only: false
+  
+  # Show fix suggestions in error messages (true/false)
+  # When false, only shows error type and location
+  show_fixes: true
+
+# Scanning strategy
+# 'paths' - Scan by visiting routes/paths (default)
+# 'view_files' - Scan by finding view files and visiting their routes
+scan_strategy: 'view_files'
+
 # Global check configuration
 # Set to false to disable a check globally
 checks:

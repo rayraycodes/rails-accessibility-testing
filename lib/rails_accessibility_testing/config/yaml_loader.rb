@@ -68,8 +68,15 @@ module RailsAccessibilityTesting
           
           merged_checks = checks.merge(profile_checks)
           
+          # Deep merge summary configuration
+          base_summary = base_config['summary'] || {}
+          profile_summary = profile_config['summary'] || {}
+          merged_summary = base_summary.merge(profile_summary)
+          
           base_config.merge(
             'checks' => merged_checks,
+            'summary' => merged_summary,
+            'scan_strategy' => profile_config['scan_strategy'] || base_config['scan_strategy'] || 'paths',
             'profile' => profile.to_s,
             'ignored_rules' => parse_ignored_rules(parsed, profile)
           )
@@ -105,6 +112,12 @@ module RailsAccessibilityTesting
           {
             'wcag_level' => 'AA',
             'checks' => default_checks,
+            'summary' => {
+              'show_summary' => true,
+              'errors_only' => false,
+              'show_fixes' => true
+            },
+            'scan_strategy' => 'paths',
             'ignored_rules' => [],
             'profile' => 'test'
           }
