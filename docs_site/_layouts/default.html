@@ -851,7 +851,7 @@
       // Wait a bit for Jekyll/Kramdown to finish processing
       setTimeout(() => {
         processMermaidDiagrams();
-      }, 100);
+      }, 300); // Increased delay for GitHub Pages
     }
 
     // Process diagrams when DOM is ready
@@ -860,6 +860,49 @@
     } else {
       // DOM already loaded, process after a short delay
       initMermaid();
+    }
+  </script>
+  
+  <!-- Fallback: Load Mermaid via regular script if module fails -->
+  <script>
+    // If mermaid wasn't loaded via module, load it via regular script
+    if (typeof window.mermaid === 'undefined') {
+      console.log('Loading Mermaid via fallback script...');
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+      script.onload = function() {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'default',
+          securityLevel: 'loose',
+          flowchart: { useMaxWidth: true },
+          sequence: { useMaxWidth: true },
+          gantt: { useMaxWidth: true }
+        });
+        window.mermaid = mermaid;
+        
+        // Process diagrams after loading
+        setTimeout(() => {
+          if (typeof processMermaidDiagrams === 'function') {
+            processMermaidDiagrams();
+          } else {
+            // Fallback processing
+            const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid, code[class*="mermaid"]');
+            mermaidBlocks.forEach((block) => {
+              const preElement = block.parentElement;
+              if (preElement && preElement.tagName === 'PRE') {
+                const mermaidCode = block.textContent || block.innerText;
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = mermaidCode;
+                preElement.parentNode.replaceChild(mermaidDiv, preElement);
+              }
+            });
+            mermaid.run();
+          }
+        }, 100);
+      };
+      document.head.appendChild(script);
     }
   </script>
 </body>
