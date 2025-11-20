@@ -799,8 +799,22 @@
         return;
       }
       
-      // Find all code blocks with mermaid language
-      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid, code[class*="mermaid"]');
+      // Find all code blocks with mermaid language - try multiple selectors
+      let mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid, code[class*="mermaid"], pre code[class*="language-mermaid"]');
+      
+      // If none found, check all code blocks for mermaid syntax
+      if (mermaidBlocks.length === 0) {
+        console.log('No mermaid language blocks found, checking all code blocks for mermaid syntax...');
+        const allCodeBlocks = document.querySelectorAll('pre code');
+        const foundBlocks = [];
+        allCodeBlocks.forEach(block => {
+          const code = block.textContent || block.innerText;
+          if (code.trim().match(/^(graph|sequenceDiagram|flowchart|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey)/)) {
+            foundBlocks.push(block);
+          }
+        });
+        mermaidBlocks = foundBlocks;
+      }
       
       console.log('Found', mermaidBlocks.length, 'Mermaid code blocks');
 
