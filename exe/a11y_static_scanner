@@ -21,6 +21,7 @@ end
 # Require the gem
 begin
   require 'rails_accessibility_testing'
+  require 'rails_accessibility_testing/static_file_scanner'
 rescue LoadError => e
   $stderr.puts "❌ Error loading rails_accessibility_testing gem: #{e.message}"
   $stderr.puts "   Make sure the gem is installed: bundle install"

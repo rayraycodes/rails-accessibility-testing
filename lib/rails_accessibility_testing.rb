@@ -47,6 +47,8 @@ require_relative 'rails_accessibility_testing/configuration'
 require_relative 'rails_accessibility_testing/change_detector'
 require_relative 'rails_accessibility_testing/error_message_builder'
 require_relative 'rails_accessibility_testing/accessibility_helper'
+require_relative 'rails_accessibility_testing/static_page_adapter'
+require_relative 'rails_accessibility_testing/static_file_scanner'
 # Only load RSpec-specific components when RSpec is available
 if defined?(RSpec)
   require_relative 'rails_accessibility_testing/shared_examples'
