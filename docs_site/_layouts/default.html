@@ -504,6 +504,68 @@
       });
     }
 
+    // Drag/pan functionality
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    function initDrag(wrapper) {
+      wrapper.style.cursor = 'grab';
+      wrapper.style.userSelect = 'none';
+
+      wrapper.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // Left mouse button only
+          isDragging = true;
+          startX = e.clientX - currentX;
+          startY = e.clientY - currentY;
+          wrapper.style.cursor = 'grabbing';
+        }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          currentX = e.clientX - startX;
+          currentY = e.clientY - startY;
+          wrapper.style.transform = `scale(${currentZoom / 100}) translate(${currentX}px, ${currentY}px)`;
+        }
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          wrapper.style.cursor = 'grab';
+        }
+      });
+
+      // Touch support for mobile
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      wrapper.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          touchStartX = e.touches[0].clientX - currentX;
+          touchStartY = e.touches[0].clientY - currentY;
+        }
+      });
+
+      document.addEventListener('touchmove', (e) => {
+        if (isDragging && e.touches.length === 1) {
+          e.preventDefault();
+          currentX = e.touches[0].clientX - touchStartX;
+          currentY = e.touches[0].clientY - touchStartY;
+          wrapper.style.transform = `scale(${currentZoom / 100}) translate(${currentX}px, ${currentY}px)`;
+        }
+      });
+
+      document.addEventListener('touchend', () => {
+        isDragging = false;
+      });
+    }
+
     // Function to open diagram in fullscreen
     function openFullscreen(diagramElement) {
       const overlay = document.getElementById('diagram-fullscreen-overlay');
@@ -513,24 +575,30 @@
       const clone = diagramElement.cloneNode(true);
       content.innerHTML = '';
       
-      // Create wrapper for zoom functionality
+      // Create wrapper for zoom and drag functionality
       const wrapper = document.createElement('div');
       wrapper.style.width = '100%';
       wrapper.style.height = '100%';
       wrapper.style.display = 'flex';
       wrapper.style.alignItems = 'center';
       wrapper.style.justifyContent = 'center';
-      wrapper.style.overflow = 'auto';
+      wrapper.style.overflow = 'hidden';
+      wrapper.style.position = 'relative';
       wrapper.id = 'diagram-zoom-wrapper';
       
       wrapper.appendChild(clone);
       content.appendChild(wrapper);
 
-      // Reset zoom
+      // Reset zoom and position
       currentZoom = 100;
-      wrapper.style.transform = 'scale(1)';
+      currentX = 0;
+      currentY = 0;
+      wrapper.style.transform = 'scale(1) translate(0px, 0px)';
       wrapper.style.transformOrigin = 'center center';
       updateZoomLevel(100);
+
+      // Initialize drag functionality
+      initDrag(wrapper);
 
       // Show overlay
       overlay.classList.add('active');
@@ -563,13 +631,20 @@
 
     function resetZoom() {
       currentZoom = 100;
-      applyZoom();
+      currentX = 0;
+      currentY = 0;
+      const wrapper = document.getElementById('diagram-zoom-wrapper');
+      if (wrapper) {
+        wrapper.style.transform = 'scale(1) translate(0px, 0px)';
+        updateZoomLevel(100);
+      }
     }
 
     function applyZoom() {
       const wrapper = document.getElementById('diagram-zoom-wrapper');
       if (wrapper) {
-        wrapper.style.transform = `scale(${currentZoom / 100})`;
+        // Preserve current position when zooming
+        wrapper.style.transform = `scale(${currentZoom / 100}) translate(${currentX}px, ${currentY}px)`;
         updateZoomLevel(currentZoom);
       }
     }
