@@ -135,12 +135,55 @@ module RailsAccessibilityTesting
     end
 
     # Extract HTML from ERB template (remove Ruby code, keep HTML)
+    # Also converts Rails helpers to placeholder HTML so checks can detect them
     def extract_html_from_erb(content)
-      # Remove ERB tags but keep the HTML structure
-      # This is a simplified approach - for production, might want more sophisticated parsing
       html = content.dup
 
-      # Remove ERB code blocks but preserve line structure
+      # Convert Rails helpers to placeholder HTML before removing ERB tags
+      # This allows checks to detect form elements, images, etc.
+      
+      # select_tag "name" or select_tag :name → <select name="name" id="name">
+      html.gsub!(/<%=\s*select_tag\s+["']?(\w+)["']?[^%]*%>/) do |match|
+        name = $1
+        id = name
+        "<select name=\"#{name}\" id=\"#{id}\"></select>"
+      end
+      
+      # text_field_tag "name" → <input type="text" name="name" id="name">
+      html.gsub!(/<%=\s*text_field_tag\s+["']?(\w+)["']?[^%]*%>/) do |match|
+        name = $1
+        id = name
+        "<input type=\"text\" name=\"#{name}\" id=\"#{id}\">"
+      end
+      
+      # password_field_tag "name" → <input type="password" name="name" id="name">
+      html.gsub!(/<%=\s*password_field_tag\s+["']?(\w+)["']?[^%]*%>/) do |match|
+        name = $1
+        id = name
+        "<input type=\"password\" name=\"#{name}\" id=\"#{id}\">"
+      end
+      
+      # email_field_tag "name" → <input type="email" name="name" id="name">
+      html.gsub!(/<%=\s*email_field_tag\s+["']?(\w+)["']?[^%]*%>/) do |match|
+        name = $1
+        id = name
+        "<input type=\"email\" name=\"#{name}\" id=\"#{id}\">"
+      end
+      
+      # text_area_tag "name" → <textarea name="name" id="name"></textarea>
+      html.gsub!(/<%=\s*text_area_tag\s+["']?(\w+)["']?[^%]*%>/) do |match|
+        name = $1
+        id = name
+        "<textarea name=\"#{name}\" id=\"#{id}\"></textarea>"
+      end
+      
+      # image_tag "path" → <img src="path">
+      html.gsub!(/<%=\s*image_tag\s+["']([^"']+)["'][^%]*%>/) do |match|
+        src = $1
+        "<img src=\"#{src}\">"
+      end
+      
+      # Remove remaining ERB code blocks but preserve line structure
       html.gsub!(/<%[^%]*%>/, '')
       html.gsub!(/<%=.*?%>/, '')
 
