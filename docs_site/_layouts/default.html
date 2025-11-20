@@ -197,22 +197,64 @@
       gantt: { useMaxWidth: true }
     });
     
-    // Ensure Mermaid processes all code blocks after DOM is ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() {
-        // Mermaid will process automatically with startOnLoad: true
-        // But we can also manually trigger if needed
-        const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
-        if (mermaidBlocks.length > 0) {
-          console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks to render');
-        }
-      });
-    } else {
-      // DOM already loaded
-      const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
+    // Function to process Mermaid diagrams
+    function processMermaidDiagrams() {
+      // Find all code blocks with mermaid language
+      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid');
+      
       if (mermaidBlocks.length > 0) {
-        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks to render');
+        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks');
+        
+        // Process each block
+        mermaidBlocks.forEach((block, index) => {
+          // Get the parent pre element if it exists
+          const preElement = block.parentElement;
+          if (preElement && preElement.tagName === 'PRE') {
+            // Get the mermaid code
+            const mermaidCode = block.textContent || block.innerText;
+            
+            // Create a div for Mermaid to render into
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = mermaidCode;
+            
+            // Replace the pre element with the mermaid div
+            preElement.parentNode.replaceChild(mermaidDiv, preElement);
+          }
+        });
+        
+        // Run Mermaid to render all diagrams
+        mermaid.run();
+      } else {
+        // Fallback: look for pre > code blocks and check if they contain mermaid syntax
+        const allCodeBlocks = document.querySelectorAll('pre code');
+        allCodeBlocks.forEach((codeBlock) => {
+          const code = codeBlock.textContent || codeBlock.innerText;
+          // Check if it looks like mermaid code (starts with graph, sequenceDiagram, etc.)
+          if (code.trim().match(/^(graph|sequenceDiagram|flowchart|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey)/)) {
+            const preElement = codeBlock.parentElement;
+            if (preElement && preElement.tagName === 'PRE') {
+              const mermaidDiv = document.createElement('div');
+              mermaidDiv.className = 'mermaid';
+              mermaidDiv.textContent = code;
+              preElement.parentNode.replaceChild(mermaidDiv, preElement);
+            }
+          }
+        });
+        
+        // Run Mermaid after processing
+        if (document.querySelectorAll('.mermaid').length > 0) {
+          mermaid.run();
+        }
       }
+    }
+    
+    // Process diagrams when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', processMermaidDiagrams);
+    } else {
+      // DOM already loaded, process immediately
+      processMermaidDiagrams();
     }
   </script>
 </body>
