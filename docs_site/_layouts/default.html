@@ -407,19 +407,40 @@
     <p><a href="https://github.com/rayraycodes/rails-accessibility-testing" style="color: white;">GitHub</a></p>
   </footer>
 
-  <!-- Mermaid.js for diagram rendering - Load at end of body for better reliability -->
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-
-    // Initialize Mermaid
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'default',
-      securityLevel: 'loose',
-      flowchart: { useMaxWidth: true },
-      sequence: { useMaxWidth: true },
-      gantt: { useMaxWidth: true }
-    });
+  <!-- Mermaid.js for diagram rendering - Use regular script for GitHub Pages compatibility -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    // Initialize Mermaid when loaded
+    (function() {
+      function initMermaidLib() {
+        if (typeof mermaid !== 'undefined') {
+          mermaid.initialize({
+            startOnLoad: false, // We'll call run() manually
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true },
+            sequence: { useMaxWidth: true },
+            gantt: { useMaxWidth: true }
+          });
+          window.mermaid = mermaid;
+          return true;
+        }
+        return false;
+      }
+      
+      // Try to initialize immediately
+      if (!initMermaidLib()) {
+        // If not loaded yet, wait for it
+        const checkInterval = setInterval(() => {
+          if (initMermaidLib()) {
+            clearInterval(checkInterval);
+          }
+        }, 50);
+        
+        // Stop checking after 5 seconds
+        setTimeout(() => clearInterval(checkInterval), 5000);
+      }
+    })();
 
     // Function to create fullscreen overlay
     function createFullscreenOverlay() {
@@ -851,69 +872,28 @@
       }
     };
 
-    // Wait for everything to be ready
-    function initMermaid() {
-      // Wait a bit for Jekyll/Kramdown to finish processing
-      setTimeout(() => {
-        if (typeof window.processMermaidDiagrams === 'function') {
+    // Wait for Mermaid to load, then process diagrams
+    function waitForMermaidAndProcess() {
+      if (typeof mermaid !== 'undefined' && typeof window.processMermaidDiagrams === 'function') {
+        // Wait a bit for Jekyll/Kramdown to finish processing
+        setTimeout(() => {
           window.processMermaidDiagrams();
-        }
-      }, 300); // Increased delay for GitHub Pages
+        }, 300);
+      } else {
+        // Mermaid not loaded yet, wait and try again
+        setTimeout(waitForMermaidAndProcess, 100);
+      }
     }
 
     // Process diagrams when DOM is ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initMermaid);
+      document.addEventListener('DOMContentLoaded', waitForMermaidAndProcess);
     } else {
-      // DOM already loaded, process after a short delay
-      initMermaid();
+      // DOM already loaded, wait for Mermaid
+      waitForMermaidAndProcess();
     }
-  </script>
-  
-  <!-- Fallback: Load Mermaid via regular script if module fails -->
-  <script>
-    // Check if mermaid was loaded after a delay
-    setTimeout(() => {
-      if (typeof window.mermaid === 'undefined') {
-        console.log('Loading Mermaid via fallback script...');
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-        script.onload = function() {
-          mermaid.initialize({
-            startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'loose',
-            flowchart: { useMaxWidth: true },
-            sequence: { useMaxWidth: true },
-            gantt: { useMaxWidth: true }
-          });
-          window.mermaid = mermaid;
-          
-          // Process diagrams after loading
-          setTimeout(() => {
-            if (typeof window.processMermaidDiagrams === 'function') {
-              window.processMermaidDiagrams();
-            } else {
-              // Fallback processing
-              const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid, code[class*="mermaid"]');
-              mermaidBlocks.forEach((block) => {
-                const preElement = block.parentElement;
-                if (preElement && preElement.tagName === 'PRE') {
-                  const mermaidCode = block.textContent || block.innerText;
-                  const mermaidDiv = document.createElement('div');
-                  mermaidDiv.className = 'mermaid';
-                  mermaidDiv.textContent = mermaidCode;
-                  preElement.parentNode.replaceChild(mermaidDiv, preElement);
-                }
-              });
-              mermaid.run();
-            }
-          }, 200);
-        };
-        document.head.appendChild(script);
-      }
-    }, 500);
   </script>
 </body>
 
+</html>
 </html>
