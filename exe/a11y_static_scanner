@@ -22,6 +22,7 @@ end
 begin
   require 'rails_accessibility_testing'
   require 'rails_accessibility_testing/static_file_scanner'
+  require 'rails_accessibility_testing/file_change_tracker'
 rescue LoadError => e
   $stderr.puts "❌ Error loading rails_accessibility_testing gem: #{e.message}"
   $stderr.puts "   Make sure the gem is installed: bundle install"
@@ -61,13 +62,17 @@ def format_errors(errors, warnings)
         end
         
         # Add element identifier
-        if error[:element][:id].present?
-          error_line += " [id: #{error[:element][:id]}]"
-        elsif error[:element][:href].present?
-          href_display = error[:element][:href].length > 30 ? "#{error[:element][:href][0..27]}..." : error[:element][:href]
+        element_id = error[:element][:id]
+        element_href = error[:element][:href]
+        element_src = error[:element][:src]
+        
+        if element_id && !element_id.to_s.strip.empty?
+          error_line += " [id: #{element_id}]"
+        elsif element_href && !element_href.to_s.strip.empty?
+          href_display = element_href.length > 30 ? "#{element_href[0..27]}..." : element_href
           error_line += " [href: #{href_display}]"
-        elsif error[:element][:src].present?
-          src_display = error[:element][:src].length > 30 ? "#{error[:element][:src][0..27]}..." : error[:element][:src]
+        elsif element_src && !element_src.to_s.strip.empty?
+          src_display = element_src.length > 30 ? "#{element_src[0..27]}..." : element_src
           error_line += " [src: #{src_display}]"
         end
         
@@ -102,13 +107,17 @@ def format_errors(errors, warnings)
         end
         
         # Add element identifier
-        if warning[:element][:id].present?
-          warning_line += " [id: #{warning[:element][:id]}]"
-        elsif warning[:element][:href].present?
-          href_display = warning[:element][:href].length > 30 ? "#{warning[:element][:href][0..27]}..." : warning[:element][:href]
+        element_id = warning[:element][:id]
+        element_href = warning[:element][:href]
+        element_src = warning[:element][:src]
+        
+        if element_id && !element_id.to_s.strip.empty?
+          warning_line += " [id: #{element_id}]"
+        elsif element_href && !element_href.to_s.strip.empty?
+          href_display = element_href.length > 30 ? "#{element_href[0..27]}..." : element_href
           warning_line += " [href: #{href_display}]"
-        elsif warning[:element][:src].present?
-          src_display = warning[:element][:src].length > 30 ? "#{warning[:element][:src][0..27]}..." : warning[:element][:src]
+        elsif element_src && !element_src.to_s.strip.empty?
+          src_display = element_src.length > 30 ? "#{element_src[0..27]}..." : element_src
           warning_line += " [src: #{src_display}]"
         end
         
@@ -166,45 +175,152 @@ begin
   puts "📋 Found #{view_files.length} view file#{'s' if view_files.length != 1} to scan"
   puts ""
   
+  # Load config
+  begin
+    config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: :development)
+    ignore_warnings = config.dig('summary', 'ignore_warnings') || false
+    static_config = config['static_scanner'] || {}
+    scan_changed_only = static_config.fetch('scan_changed_only', true)
+    check_interval = static_config.fetch('check_interval', 3)
+    full_scan_on_startup = static_config.fetch('full_scan_on_startup', true)
+  rescue StandardError
+    ignore_warnings = false
+    scan_changed_only = true
+    check_interval = 3
+    full_scan_on_startup = true
+  end
+  
+  # Determine which files to scan
+  files_to_scan = []
+  
+  if scan_changed_only && !full_scan_on_startup
+    # Only scan changed files from the start (no full scan on startup)
+    changed = RailsAccessibilityTesting::FileChangeTracker.changed_files(view_files)
+    if changed.empty?
+      puts "✅ No files changed since last scan"
+      puts "🔄 Scanner running continuously - watching for file changes..."
+      puts "   Press Ctrl-C to stop"
+      puts ""
+      
+      # Just watch for changes
+      loop do
+        sleep check_interval
+        changed = RailsAccessibilityTesting::FileChangeTracker.changed_files(view_files)
+        if changed.any?
+          puts "\n📝 #{changed.length} file#{'s' if changed.length != 1} changed - scanning..."
+          files_to_scan = changed
+          break
+        end
+      end
+    else
+      puts "📝 Found #{changed.length} changed file#{'s' if changed.length != 1} to scan"
+      files_to_scan = changed
+    end
+  elsif scan_changed_only && full_scan_on_startup
+    # Always scan all files on startup when full_scan_on_startup is true
+    # This ensures every new instance of bin/dev runs a full scan
+    puts "📋 Scanning all #{view_files.length} file#{'s' if view_files.length != 1} on startup"
+    files_to_scan = view_files
+  else
+    # Scan all files every time (scan_changed_only is false)
+    puts "📋 Scanning all #{view_files.length} file#{'s' if view_files.length != 1}"
+    files_to_scan = view_files
+  end
+  
+  # Scan files
   all_errors = []
   all_warnings = []
   
-  view_files.each do |view_file|
-    scanner = RailsAccessibilityTesting::StaticFileScanner.new(view_file)
-    result = scanner.scan
-    
-    errors = result[:errors] || []
-    warnings = result[:warnings] || []
-    
-    all_errors.concat(errors)
-    all_warnings.concat(warnings)
-    
-    # Show progress
-    if errors.any? || warnings.any?
+  if files_to_scan.any?
+    files_to_scan.each do |view_file|
+      scanner = RailsAccessibilityTesting::StaticFileScanner.new(view_file)
+      result = scanner.scan
+      
+      errors = result[:errors] || []
+      warnings = result[:warnings] || []
+      
+      all_errors.concat(errors)
+      all_warnings.concat(warnings) unless ignore_warnings
+      
       print "."
-    else
-      print "."
+      $stdout.flush
     end
-    $stdout.flush
+    
+    # Update state with scanned files
+    RailsAccessibilityTesting::FileChangeTracker.update_state(files_to_scan)
+    
+    puts ""
+    puts ""
+    
+    # Show results
+    if all_errors.any? || (all_warnings.any? && !ignore_warnings)
+      puts format_errors(all_errors, ignore_warnings ? [] : all_warnings)
+      puts ""
+      puts "💡 Fix the errors above - scanner will re-run automatically"
+      puts ""
+    else
+      puts "✅ All #{files_to_scan.length} scanned file#{'s' if files_to_scan.length != 1} passed accessibility checks!"
+      puts ""
+    end
   end
   
-  puts ""
-  puts ""
-  
-  # Show results
-  if all_errors.any? || all_warnings.any?
-    puts format_errors(all_errors, all_warnings)
+  # Keep scanner running continuously - re-scan files when they change
+  if scan_changed_only
+    # Always show waiting message after scanning
+    puts "🔄 Scanner running continuously - watching for file changes..."
+    puts "   Press Ctrl-C to stop"
     puts ""
-    puts "💡 Fix the errors above - scanner will re-run automatically"
-    puts ""
+    
+    loop do
+      sleep check_interval
+      
+      # Check for changed files using FileChangeTracker
+      changed = RailsAccessibilityTesting::FileChangeTracker.changed_files(view_files)
+      
+      if changed.any?
+        puts "\n📝 #{changed.length} file#{'s' if changed.length != 1} changed - re-scanning..."
+        puts ""
+        
+        # Scan only changed files
+        all_errors = []
+        all_warnings = []
+        
+        changed.each do |view_file|
+          scanner = RailsAccessibilityTesting::StaticFileScanner.new(view_file)
+          result = scanner.scan
+          
+          errors = result[:errors] || []
+          warnings = result[:warnings] || []
+          
+          all_errors.concat(errors)
+          all_warnings.concat(warnings) unless ignore_warnings
+          
+          print "."
+          $stdout.flush
+        end
+        
+        # Update state
+        RailsAccessibilityTesting::FileChangeTracker.update_state(changed)
+        
+        puts ""
+        puts ""
+        
+        # Show results
+        if all_errors.any? || (all_warnings.any? && !ignore_warnings)
+          puts format_errors(all_errors, ignore_warnings ? [] : all_warnings)
+          puts ""
+          puts "💡 Fix the errors above - scanner will re-run automatically"
+          puts ""
+        else
+          puts "✅ All #{changed.length} scanned file#{'s' if changed.length != 1} passed accessibility checks!"
+          puts ""
+        end
+      end
+    end
   else
-    puts "✅ All #{view_files.length} view file#{'s' if view_files.length != 1} passed accessibility checks!"
-    puts ""
+    # Not watching for changes - exit after scan
+    puts "✅ Scan complete"
   end
-  
-  # Always exit with success code so Foreman doesn't kill other processes
-  # Errors are displayed above, so developer can see them
-  exit 0
   
 rescue Interrupt
   puts "\n\n👋 Scanner stopped"

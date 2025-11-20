@@ -18,11 +18,32 @@ summary:
   # Show fix suggestions in error messages (true/false)
   # When false, only shows error type and location
   show_fixes: true
+  
+  # Ignore warnings completely - only show errors (true/false)
+  # When true, warnings are filtered out and not displayed or counted
+  ignore_warnings: false
 
 # Scanning strategy
 # 'paths' - Scan by visiting routes/paths (default)
 # 'view_files' - Scan by finding view files and visiting their routes
 scan_strategy: 'view_files'
+
+# Static scanner configuration
+# Controls behavior of the static file scanner (a11y_static_scanner)
+static_scanner:
+  # Only scan files that have changed since last scan (true/false)
+  # When true, uses file modification times to track changes
+  # When false, scans all files on every run
+  scan_changed_only: true
+  
+  # Check interval in seconds when running continuously
+  # Scanner checks for file changes every N seconds
+  check_interval: 3
+  
+  # Force full scan on startup (true/false)
+  # When true, scans all files on first run regardless of changes
+  # When false, only scans changed files from the start
+  full_scan_on_startup: true
 
 # Global check configuration
 # Set to false to disable a check globally

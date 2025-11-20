@@ -18,13 +18,15 @@ module RailsAccessibilityTesting
         
         page.all('input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="tel"], input[type="url"], input[type="search"], input[type="date"], input[type="time"], input[type="datetime-local"], textarea, select').each do |input|
           id = input[:id]
-          next if id.blank?
+          next if id.nil? || id.to_s.strip.empty?
           
           has_label = page.has_css?("label[for='#{id}']", wait: false)
-          aria_label = input[:"aria-label"].present?
-          aria_labelledby = input[:"aria-labelledby"].present?
+          aria_label = input[:"aria-label"]
+          aria_labelledby = input[:"aria-labelledby"]
+          has_aria_label = aria_label && !aria_label.to_s.strip.empty?
+          has_aria_labelledby = aria_labelledby && !aria_labelledby.to_s.strip.empty?
           
-          unless has_label || aria_label || aria_labelledby
+          unless has_label || has_aria_label || has_aria_labelledby
             element_ctx = element_context(input)
             element_ctx[:input_type] = input[:type] || input.tag_name
             

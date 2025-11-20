@@ -31,7 +31,7 @@ module RailsAccessibilityTesting
               wcag_reference: "1.1.1",
               remediation: generate_remediation(element_ctx)
             )
-          elsif alt_value.blank? && has_alt_attribute
+          elsif (alt_value.nil? || alt_value.to_s.strip.empty?) && has_alt_attribute
             # Image has alt attribute but it's empty - warn about this
             # Empty alt is valid for decorative images, but we should check if it's actually decorative
             element_ctx = element_context(img)

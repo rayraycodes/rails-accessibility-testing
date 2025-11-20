@@ -18,22 +18,26 @@ module RailsAccessibilityTesting
         page.all('button, a[href], [role="button"], [role="link"]').each do |element|
           next unless element.visible?
           
-          text = element.text.strip
+          text = element.text.to_s.strip
           aria_label = element[:"aria-label"]
           aria_labelledby = element[:"aria-labelledby"]
           title = element[:title]
           
           # Check if element contains an image with alt text (common pattern for logo links)
           has_image_with_alt = false
-          if text.blank?
-            images = element.all('img', visible: :all)
-            has_image_with_alt = images.any? do |img|
-              alt = img[:alt]
-              alt.present? && !alt.strip.empty?
-            end
+          if text.empty?
+            # For static scanning, we can't easily check images within elements
+            # This check works better in dynamic scanning with Capybara
+            # For now, skip image checking in static mode
+            has_image_with_alt = false
           end
           
-          if text.blank? && aria_label.blank? && aria_labelledby.blank? && title.blank? && !has_image_with_alt
+          text_empty = text.empty?
+          aria_label_empty = aria_label.nil? || aria_label.to_s.strip.empty?
+          aria_labelledby_empty = aria_labelledby.nil? || aria_labelledby.to_s.strip.empty?
+          title_empty = title.nil? || title.to_s.strip.empty?
+          
+          if text_empty && aria_label_empty && aria_labelledby_empty && title_empty && !has_image_with_alt
             element_ctx = element_context(element)
             tag = element.tag_name
             

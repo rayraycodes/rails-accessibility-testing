@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.5.0
+**Current Version:** 1.5.4
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -29,7 +29,15 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 - 🧪 **RSpec & Minitest** - Works with both test frameworks
 - ⚙️ **YAML Configuration** - Profile-based config (dev/test/CI)
 
-### 🆕 Version 1.5.0 Highlights
+### 🆕 Version 1.5.0+ Highlights
+
+#### 🔍 Static File Scanner (NEW)
+- **Fast file-based scanning**: Scans ERB templates directly without browser rendering
+- **Smart change detection**: Only scans files that have changed since last scan
+- **Precise error reporting**: Shows exact file locations and line numbers
+- **Continuous monitoring**: Watches for file changes and re-scans automatically
+- **YAML configuration**: Fully configurable via `config/accessibility.yml`
+- **Reuses existing checks**: Leverages all 11 accessibility checks via RuleEngine
 
 #### 🎯 Live Accessibility Scanner
 - **Real-time scanning**: Automatically scans pages as you browse during development
@@ -99,7 +107,7 @@ This creates:
 - `config/accessibility.yml` - Check settings
 - `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that dynamically tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
-- Updates `Procfile.dev` with live accessibility scanner (if present)
+- Updates `Procfile.dev` with static accessibility scanner (`a11y_static_scanner`)
   - Optionally uses `rails_server_safe` wrapper (convenience helper, not required)
 
 ### Setup (Option 2: Manual)
@@ -203,15 +211,36 @@ end
 
 ### Continuous Development Testing
 
-Add to your `Procfile.dev`:
+The generator automatically adds a static accessibility scanner to your `Procfile.dev`:
 
-```ruby
-web: $(bundle show rails_accessibility_testing)/exe/rails_server_safe
+```procfile
+web: bin/rails server
 css: bin/rails dartsass:watch
-a11y: while true; do bin/check_a11y_changes && (test -f bin/rspec && bin/rspec spec/system/*_accessibility_spec.rb --format progress --no-profile || bundle exec rspec spec/system/*_accessibility_spec.rb --format progress --no-profile) 2>&1 | grep -v "^[[:space:]]*[0-9]*)[[:space:]]*All Pages Accessibility checks accessibility" | grep -v "# Skipping" || echo '⏭️  No changes detected, skipping tests'; sleep 30; done
+a11y: bundle exec a11y_static_scanner
 ```
 
-This runs accessibility tests every 30 seconds, but only when files have changed!
+Then run:
+
+```bash
+bin/dev
+```
+
+This will:
+- Start your Rails server
+- Watch for CSS changes
+- **Continuously scan view files for accessibility issues** - Only scans files that have changed since last scan
+- Shows errors with exact file locations and line numbers
+
+**Configuration** (in `config/accessibility.yml`):
+
+```yaml
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on first run
+```
+
+The static scanner provides fast, continuous feedback as you develop!
 
 ### CLI Usage
 
@@ -273,6 +302,19 @@ checks:
   duplicate_ids: true
   skip_links: true
   color_contrast: false  # Disabled by default (expensive)
+
+# Summary configuration
+summary:
+  show_summary: true
+  errors_only: false
+  show_fixes: true
+  ignore_warnings: false  # Set to true to hide warnings, only show errors
+
+# Static scanner configuration
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on first run
 
 # Profile-specific configurations
 development:
@@ -418,6 +460,8 @@ Rails Accessibility Testing is built with a clean, modular architecture:
 - **View File Detection** - Intelligent detection of view files and partials
 - **Change Detector** - Smart detection of file changes and their impact
 - **Page Scanning Cache** - Prevents duplicate scans for performance
+- **Static File Scanner** - Fast file-based scanning without browser (NEW in 1.5.3)
+- **File Change Tracker** - Tracks file modification times for efficient change detection
 - **Rails Integration** - Railtie, RSpec, Minitest helpers
 - **CLI** - Command-line interface for URL/route scanning
 - **Configuration** - YAML-based config with profiles

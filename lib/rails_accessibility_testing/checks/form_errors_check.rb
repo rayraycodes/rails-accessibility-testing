@@ -17,7 +17,7 @@ module RailsAccessibilityTesting
         
         page.all('.field_with_errors input, .field_with_errors textarea, .field_with_errors select, .is-invalid, [aria-invalid="true"]').each do |input|
           id = input[:id]
-          next if id.blank?
+          next if id.nil? || id.to_s.strip.empty?
           
           has_error_message = page.has_css?("[aria-describedby*='#{id}'], .field_with_errors label[for='#{id}'] + .error, .field_with_errors label[for='#{id}'] + .invalid-feedback", wait: false)
           

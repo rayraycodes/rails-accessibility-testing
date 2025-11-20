@@ -73,10 +73,16 @@ module RailsAccessibilityTesting
           profile_summary = profile_config['summary'] || {}
           merged_summary = base_summary.merge(profile_summary)
           
+          # Merge static_scanner config
+          base_static_scanner = base_config['static_scanner'] || {}
+          profile_static_scanner = profile_config['static_scanner'] || {}
+          merged_static_scanner = base_static_scanner.merge(profile_static_scanner)
+          
           base_config.merge(
             'checks' => merged_checks,
             'summary' => merged_summary,
             'scan_strategy' => profile_config['scan_strategy'] || base_config['scan_strategy'] || 'paths',
+            'static_scanner' => merged_static_scanner,
             'profile' => profile.to_s,
             'ignored_rules' => parse_ignored_rules(parsed, profile)
           )
@@ -115,7 +121,8 @@ module RailsAccessibilityTesting
             'summary' => {
               'show_summary' => true,
               'errors_only' => false,
-              'show_fixes' => true
+              'show_fixes' => true,
+              'ignore_warnings' => false
             },
             'scan_strategy' => 'paths',
             'ignored_rules' => [],

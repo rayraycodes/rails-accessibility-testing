@@ -5,7 +5,7 @@
 # Automatically configures accessibility testing for Rails system specs with
 # comprehensive checks and detailed error messages.
 #
-# @version 1.5.0
+# @version 1.5.4
 # @author Regan Maharjan
 #
 # @example Basic usage
@@ -45,10 +45,16 @@ end
 # Load core components
 require_relative 'rails_accessibility_testing/configuration'
 require_relative 'rails_accessibility_testing/change_detector'
+require_relative 'rails_accessibility_testing/file_change_tracker'
 require_relative 'rails_accessibility_testing/error_message_builder'
 require_relative 'rails_accessibility_testing/accessibility_helper'
+# Static scanning components (modular and reusable)
 require_relative 'rails_accessibility_testing/static_page_adapter'
+require_relative 'rails_accessibility_testing/erb_extractor'
+require_relative 'rails_accessibility_testing/line_number_finder'
+require_relative 'rails_accessibility_testing/violation_converter'
 require_relative 'rails_accessibility_testing/static_file_scanner'
+require_relative 'rails_accessibility_testing/static_scanning'
 # Only load RSpec-specific components when RSpec is available
 if defined?(RSpec)
   require_relative 'rails_accessibility_testing/shared_examples'

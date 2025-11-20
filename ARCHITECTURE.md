@@ -49,6 +49,14 @@ rails_accessibility_testing/
 │   ├── First-Run Logic      # Optimizes initial vs subsequent runs
 │   └── Asset Change Detection # Tracks CSS/JS changes
 │
+├── Static Scanning System (NEW in 1.5.3)
+│   ├── StaticFileScanner    # Main orchestrator for file-based scanning
+│   ├── FileChangeTracker   # Tracks file modification times
+│   ├── ErbExtractor        # Converts ERB templates to HTML
+│   ├── StaticPageAdapter   # Makes Nokogiri look like Capybara
+│   ├── LineNumberFinder    # Maps HTML elements to ERB line numbers
+│   └── ViolationConverter  # Formats violations with line numbers
+│
 ├── Rails Integration
 │   ├── Railtie             # Rails initialization hooks
 │   ├── RSpec Integration    # RSpec helpers and matchers
@@ -108,6 +116,14 @@ graph TB
             Cache[Page Scanning Cache]
         end
         
+        subgraph "Static Scanning"
+            StaticScanner[Static File Scanner]
+            FileTracker[File Change Tracker]
+            ErbExtractor[ERB Extractor]
+            StaticAdapter[Static Page Adapter]
+            LineFinder[Line Number Finder]
+        end
+        
         subgraph "Configuration"
             YAMLConfig[YAML Config Loader]
             Profiles[Profile Manager]
@@ -154,12 +170,21 @@ graph TB
     CLI --> RuleEngine
     Routes --> ViewDetector
     
+    StaticScanner --> FileTracker
+    StaticScanner --> ErbExtractor
+    ErbExtractor --> StaticAdapter
+    StaticAdapter --> RuleEngine
+    StaticScanner --> LineFinder
+    LineFinder --> ErrorBuilder
+    
     style Entry fill:#ff6b6b
     style RuleEngine fill:#4ecdc4
     style Checks fill:#45b7d1
     style ViewDetector fill:#96ceb4
     style ErrorBuilder fill:#ffeaa7
     style Cache fill:#a29bfe
+    style StaticScanner fill:#feca57
+    style FileTracker fill:#ff9ff3
 ```
 
 ### Data Flow
@@ -402,6 +427,92 @@ graph TB
 - **Subsequent Runs**: Only tests changed files
 - **Force Option**: `TEST_ALL_PAGES=true` environment variable
 
+### Static Scanning System (NEW in 1.5.3)
+
+The static scanning system allows scanning view files directly without browser rendering, providing fast feedback during development.
+
+#### Components
+
+1. **StaticFileScanner** - Main orchestrator
+   - Reads ERB template files
+   - Coordinates HTML extraction and scanning
+   - Returns errors with file locations and line numbers
+
+2. **FileChangeTracker** - Change detection for static files
+   - Tracks file modification times in `tmp/.rails_a11y_scanned_files.json`
+   - Detects which files have changed since last scan
+   - Supports atomic writes to prevent partial state
+
+3. **ErbExtractor** - ERB to HTML conversion
+   - Converts Rails helpers (`link_to`, `image_tag`, `select_tag`, etc.) to HTML placeholders
+   - Preserves attributes (id, name, src, alt, href) for analysis
+   - Removes ERB tags while preserving structure
+
+4. **StaticPageAdapter** - Capybara compatibility layer
+   - Makes Nokogiri documents look like Capybara pages
+   - Allows reuse of existing checks without modification
+   - Provides Capybara-like interface (`all`, `has_css?`, etc.)
+
+5. **LineNumberFinder** - Precise error location
+   - Maps HTML elements back to original ERB line numbers
+   - Uses element attributes (id, src, href) for matching
+   - Enables precise error reporting
+
+6. **ViolationConverter** - Result formatting
+   - Converts raw violations to structured errors/warnings
+   - Adds line numbers and file paths
+   - Respects `ignore_warnings` configuration
+
+#### Static Scanning Flow
+
+```mermaid
+graph TB
+    A[View File Changed] --> B[FileChangeTracker]
+    B --> C{File Modified?}
+    C -->|No| D[Skip Scan]
+    C -->|Yes| E[StaticFileScanner]
+    E --> F[ErbExtractor]
+    F --> G[Convert ERB to HTML]
+    G --> H[StaticPageAdapter]
+    H --> I[RuleEngine]
+    I --> J[11 Checks]
+    J --> K[ViolationConverter]
+    K --> L[LineNumberFinder]
+    L --> M[Errors with Line Numbers]
+    M --> N[Update FileChangeTracker State]
+    
+    style E fill:#feca57
+    style F fill:#ff9ff3
+    style H fill:#48dbfb
+    style L fill:#ff6b6b
+```
+
+#### Configuration
+
+Static scanner behavior is controlled via `config/accessibility.yml`:
+
+```yaml
+static_scanner:
+  # Only scan files that have changed since last scan
+  scan_changed_only: true
+  
+  # Check interval in seconds when running continuously
+  check_interval: 3
+  
+  # Force full scan on startup (true/false)
+  # When true: scans all files on first run, then only changed files
+  # When false: only scans changed files from the start
+  full_scan_on_startup: true
+```
+
+#### Benefits
+
+- **Fast**: No browser needed - scans ERB templates directly
+- **Precise**: Reports exact file locations and line numbers
+- **Efficient**: Only scans changed files using modification time tracking
+- **Continuous**: Runs continuously, watching for file changes
+- **Reusable**: Leverages existing RuleEngine and all 11 checks
+
 #### Performance Optimization Flow
 
 ```mermaid
@@ -532,6 +643,13 @@ lib/
 │   ├── change_detector.rb          # Smart change detection
 │   │                                # (enhanced in 1.5.0 for assets/partials)
 │   │
+│   ├── static_file_scanner.rb     # Static file scanner orchestrator
+│   ├── file_change_tracker.rb     # Tracks file modification times
+│   ├── erb_extractor.rb           # Converts ERB to HTML
+│   ├── static_page_adapter.rb     # Nokogiri → Capybara adapter
+│   ├── line_number_finder.rb      # Maps elements to line numbers
+│   ├── violation_converter.rb     # Formats violations with line numbers
+│   │
 │   ├── integration/
 │   │   ├── rspec_integration.rb
 │   │   ├── minitest_integration.rb
@@ -565,7 +683,8 @@ lib/
 exe/
 ├── rails_a11y                    # CLI executable
 ├── rails_server_safe             # Safe server wrapper (NEW in 1.5.0)
-└── a11y_live_scanner            # Live scanner tool
+├── a11y_live_scanner            # Live scanner tool (browser-based)
+└── a11y_static_scanner          # Static file scanner (NEW in 1.5.0+)
 
 GUIDES/
 ├── getting_started.md
@@ -666,6 +785,13 @@ ci:
 3. **Enhanced ChangeDetector**: Asset change detection and smart partial impact analysis
 4. **Improved View File Detection**: Fuzzy matching and controller directory scanning
 5. **Rails Server Safe Wrapper**: Prevents Foreman from terminating processes
+6. **Static Scanning System**: File-based scanning without browser (NEW in 1.5.0+)
+   - **StaticFileScanner**: Main orchestrator for static file scanning
+   - **FileChangeTracker**: Tracks file modification times for change detection
+   - **ErbExtractor**: Converts ERB templates to HTML for analysis
+   - **StaticPageAdapter**: Makes Nokogiri documents compatible with existing checks
+   - **LineNumberFinder**: Maps HTML elements to ERB line numbers
+   - **ViolationConverter**: Formats violations with precise file locations
 
 ### Enhanced Components
 
@@ -681,6 +807,9 @@ ci:
 2. **Smart Change Detection**: Only tests affected pages
 3. **First-Run Optimization**: Faster initial setup
 4. **Reduced Wait Times**: Faster Capybara operations
+5. **Static File Scanning**: Fast file-based scanning without browser overhead (NEW in 1.5.0+)
+6. **File Change Tracking**: Only scans modified files using modification time tracking
+7. **Continuous Monitoring**: Watches for file changes and re-scans automatically
 
 ---
 

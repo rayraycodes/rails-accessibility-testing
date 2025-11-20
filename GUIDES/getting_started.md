@@ -62,14 +62,14 @@ bundle exec rspec spec/system/
 
 Accessibility checks run automatically on every system test that visits a page.
 
-#### Option B: Run Continuously with Procfile (Recommended for Development)
+#### Option B: Static File Scanner (Recommended for Development)
 
-The generator automatically adds an accessibility watch command to your `Procfile.dev`:
+The generator automatically adds a static accessibility scanner to your `Procfile.dev`:
 
 ```procfile
 web: bin/rails server
 css: bin/rails dartsass:watch
-a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
+a11y: bundle exec a11y_static_scanner
 ```
 
 Then run:
@@ -81,9 +81,31 @@ bin/dev
 This will:
 - Start your Rails server
 - Watch for CSS changes
-- **Automatically run accessibility checks every 30 seconds** on all `*_accessibility_spec.rb` files
+- **Continuously scan view files for accessibility issues** - Only scans files that have changed since last scan
+- Shows errors with exact file locations and line numbers
 
-The accessibility checker will continuously monitor your pages and alert you to any issues as you develop!
+**How it works:**
+- **First run**: Scans all view files to establish baseline
+- **Subsequent runs**: Only scans files that have been modified
+- **Continuous monitoring**: Watches for file changes and re-scans automatically
+- **Smart change detection**: Uses file modification times to track changes
+- **Fast feedback**: No browser needed - scans ERB templates directly
+
+**Configuration** (in `config/accessibility.yml`):
+
+```yaml
+static_scanner:
+  # Only scan files that have changed since last scan (true/false)
+  scan_changed_only: true
+  
+  # Check interval in seconds when running continuously
+  check_interval: 3
+  
+  # Force full scan on startup (true/false)
+  full_scan_on_startup: true
+```
+
+The static scanner provides fast, continuous feedback as you develop, catching accessibility issues before you even run your tests!
 
 #### Option C: All Pages Spec with Smart Change Detection
 
@@ -225,6 +247,19 @@ Edit `config/accessibility.yml`:
 
 ```yaml
 wcag_level: AA
+
+# Summary configuration
+summary:
+  show_summary: true
+  errors_only: false
+  show_fixes: true
+  ignore_warnings: false  # Set to true to hide warnings, only show errors
+
+# Static scanner configuration
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on first run
 
 checks:
   form_labels: true

@@ -5,18 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2024-11-20
+
+### Changed
+- **Static scanner startup behavior**: Always runs full scan on startup when `full_scan_on_startup: true` (default)
+- **Improved first-run detection**: Better handling of initial scan vs subsequent scans
+
+### Fixed
+- **Static scanner startup**: Fixed issue where scanner wasn't running full scan on every `bin/dev` startup
+- **Documentation**: Updated all documentation to reflect static scanner as primary development tool
+
 ## [1.5.3] - 2024-11-20
+
+### Added
+
+#### Static File Scanner (NEW)
+- **Fast file-based scanning**: Scans ERB templates directly without browser rendering
+- **Smart change detection**: Only scans files that have changed since last scan using file modification time tracking
+- **Precise error reporting**: Shows exact file locations and line numbers for accessibility issues
+- **Continuous monitoring**: Watches for file changes and re-scans automatically
+- **YAML configuration**: Fully configurable via `config/accessibility.yml` with `static_scanner` section
+- **Reuses existing checks**: Leverages all 11 accessibility checks via RuleEngine
+- **Modular architecture**: New components (`FileChangeTracker`, `ErbExtractor`, `StaticPageAdapter`, `LineNumberFinder`, `ViolationConverter`)
+- **Full scan on startup**: Always runs complete scan when `bin/dev` starts (configurable)
+- **Warning filtering**: New `ignore_warnings` flag in YAML config to hide warnings, only show errors
+
+#### New Components
+- **FileChangeTracker**: Tracks file modification times in `tmp/.rails_a11y_scanned_files.json` for efficient change detection
+- **ErbExtractor**: Converts ERB templates to HTML by replacing Rails helpers with HTML placeholders
+- **StaticPageAdapter**: Makes Nokogiri documents compatible with existing Capybara-based checks
+- **LineNumberFinder**: Maps HTML elements back to original ERB line numbers for precise error reporting
+- **ViolationConverter**: Formats violations with file paths and line numbers, respects `ignore_warnings` config
+
+#### Configuration Enhancements
+- **Static scanner config**: New `static_scanner` section in `accessibility.yml`:
+  - `scan_changed_only`: Only scan changed files (default: true)
+  - `check_interval`: Seconds between file checks (default: 3)
+  - `full_scan_on_startup`: Full scan on startup (default: true)
+- **Summary config**: New `ignore_warnings` flag to filter out warnings completely
+
+### Changed
+- **Generator**: Now adds `a11y_static_scanner` to `Procfile.dev` instead of live scanner
+- **Default behavior**: Static scanner runs full scan on every `bin/dev` startup by default
+- **Error reporting**: Static scanner shows errors with file paths and line numbers instead of URLs
 
 ### Fixed
 - **Gem packaging**: Verified all required files are included in gem package
-  - All executables (rails_a11y, rails_server_safe, a11y_live_scanner)
+  - All executables (rails_a11y, rails_server_safe, a11y_live_scanner, a11y_static_scanner)
   - All generator templates (.erb files)
   - Complete library files and documentation
+- **Rails helper compatibility**: Fixed `blank?` and `present?` calls to work without Rails (pure Ruby)
+- **Check compatibility**: Fixed `FormLabelsCheck`, `InteractiveElementsCheck`, `HeadingCheck` to work with static scanning
+- **Element queries**: Added `all` method to `StaticElementAdapter` for nested element queries
 
 ### Verified
 - All executables properly included in gemspec
 - Generator templates correctly packaged
 - rails_server_safe Ruby script working correctly
+- Static scanner working correctly with all 11 checks
+- File change detection working correctly
 - Local development setup confirmed working
 
 ## [1.5.2] - 2024-11-20
@@ -327,6 +374,7 @@ This release introduces significant improvements to view file detection, partial
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.5.4]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.4
 [1.5.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.3
 [1.5.2]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.2
 [1.5.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.0

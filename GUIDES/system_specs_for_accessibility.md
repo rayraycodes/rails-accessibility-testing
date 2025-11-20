@@ -38,15 +38,23 @@ end
 
 The gem automatically runs comprehensive accessibility checks after each `visit` in system specs. You don't need to call `check_comprehensive_accessibility` manually unless you want to run checks at a specific point in your test.
 
-### 3. Continuous Testing with Procfile (Optional)
+### 3. Continuous Testing with Static Scanner (Recommended)
 
-The generator automatically adds an accessibility watch command to your `Procfile.dev`:
+The generator automatically adds a static accessibility scanner to your `Procfile.dev`:
 
-```ruby
+```procfile
 web: bin/rails server
 css: bin/rails dartsass:watch
-a11y: while true; do bundle exec rspec spec/system/*_accessibility_spec.rb; sleep 30; done
+a11y: bundle exec a11y_static_scanner
 ```
+
+This provides fast, continuous feedback by scanning view files directly without browser rendering. The scanner:
+- Scans all files on startup
+- Only re-scans files that have changed
+- Shows errors with exact file locations and line numbers
+- Watches for file changes continuously
+
+See the [Getting Started Guide](getting_started.md) for more details on static scanner configuration.
 
 This will run your accessibility specs every 30 seconds while you develop. The `all_pages_accessibility_spec.rb` uses smart change detection to only test pages when their related files change, making it fast and focused.
 
