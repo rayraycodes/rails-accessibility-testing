@@ -771,12 +771,14 @@
 
     // Function to process Mermaid diagrams
     function processMermaidDiagrams() {
+      console.log('Processing Mermaid diagrams...');
+      
       // Find all code blocks with mermaid language
-      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid');
+      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid, code[class*="mermaid"]');
+      
+      console.log('Found', mermaidBlocks.length, 'Mermaid code blocks');
 
       if (mermaidBlocks.length > 0) {
-        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks');
-
         // Process each block
         mermaidBlocks.forEach((block, index) => {
           // Get the parent pre element if it exists
@@ -784,6 +786,7 @@
           if (preElement && preElement.tagName === 'PRE') {
             // Get the mermaid code
             const mermaidCode = block.textContent || block.innerText;
+            console.log('Processing Mermaid block', index + 1, ':', mermaidCode.substring(0, 50) + '...');
 
             // Create a div for Mermaid to render into
             const mermaidDiv = document.createElement('div');
@@ -796,18 +799,26 @@
         });
 
         // Run Mermaid to render all diagrams
+        console.log('Running Mermaid render...');
         mermaid.run().then(() => {
+          console.log('Mermaid rendering complete');
           // After rendering, wrap diagrams with fullscreen buttons
           createFullscreenOverlay();
           wrapDiagramsWithButtons();
+        }).catch((err) => {
+          console.error('Mermaid rendering error:', err);
         });
       } else {
         // Fallback: look for pre > code blocks and check if they contain mermaid syntax
+        console.log('No mermaid language blocks found, checking all code blocks...');
         const allCodeBlocks = document.querySelectorAll('pre code');
+        let foundMermaid = false;
+        
         allCodeBlocks.forEach((codeBlock) => {
           const code = codeBlock.textContent || codeBlock.innerText;
           // Check if it looks like mermaid code (starts with graph, sequenceDiagram, etc.)
           if (code.trim().match(/^(graph|sequenceDiagram|flowchart|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey)/)) {
+            foundMermaid = true;
             const preElement = codeBlock.parentElement;
             if (preElement && preElement.tagName === 'PRE') {
               const mermaidDiv = document.createElement('div');
@@ -819,22 +830,36 @@
         });
 
         // Run Mermaid after processing
-        if (document.querySelectorAll('.mermaid').length > 0) {
+        if (foundMermaid && document.querySelectorAll('.mermaid').length > 0) {
+          console.log('Running Mermaid render (fallback)...');
           mermaid.run().then(() => {
+            console.log('Mermaid rendering complete (fallback)');
             // After rendering, wrap diagrams with fullscreen buttons
             createFullscreenOverlay();
             wrapDiagramsWithButtons();
+          }).catch((err) => {
+            console.error('Mermaid rendering error (fallback):', err);
           });
+        } else {
+          console.log('No Mermaid diagrams found to render');
         }
       }
     }
 
+    // Wait for everything to be ready
+    function initMermaid() {
+      // Wait a bit for Jekyll/Kramdown to finish processing
+      setTimeout(() => {
+        processMermaidDiagrams();
+      }, 100);
+    }
+
     // Process diagrams when DOM is ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', processMermaidDiagrams);
+      document.addEventListener('DOMContentLoaded', initMermaid);
     } else {
-      // DOM already loaded, process immediately
-      processMermaidDiagrams();
+      // DOM already loaded, process after a short delay
+      initMermaid();
     }
   </script>
 </body>
