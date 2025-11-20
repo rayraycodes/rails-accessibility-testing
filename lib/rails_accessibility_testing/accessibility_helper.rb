@@ -309,45 +309,59 @@ module RailsAccessibilityTesting
       puts error_output
       $stdout.flush  # Flush immediately to ensure errors are visible
       
+      # Check config for errors_only flag
+      errors_only = false
+      begin
+        require 'rails_accessibility_testing/config/yaml_loader'
+        profile = defined?(Rails) && Rails.env.test? ? :test : :development
+        config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+        summary_config = config['summary'] || {}
+        errors_only = summary_config.fetch('errors_only', false)
+      rescue StandardError
+        # Use default if config can't be loaded
+      end
+      
       # Check if we're in live scanner mode (detect by checking caller)
       is_live_scanner = caller.any? { |line| line.include?('a11y_live_scanner') }
       
-      # Show warnings after errors (if any) - but skip in live scanner
-      if @accessibility_warnings.any? && !is_live_scanner
+      # Show warnings after errors (if any) - but skip if errors_only or live scanner
+      if @accessibility_warnings.any? && !is_live_scanner && !errors_only
         warning_output = format_all_warnings(@accessibility_warnings)
         puts warning_output
         $stdout.flush
       end
       
-      # Summary - make it very clear
-      puts "\n" + "="*70
-      puts "📊 SUMMARY: Found #{error_count} ERROR#{'S' if error_count != 1}"
-      puts "   #{warning_count} warning#{'s' if warning_count != 1}" if warning_count > 0 && !is_live_scanner
-      puts "="*70
+      # Compact summary
+      puts "📊 #{error_count} error#{'s' if error_count != 1}"
+      puts "   #{warning_count} warning#{'s' if warning_count != 1}" if warning_count > 0 && !is_live_scanner && !errors_only
       $stdout.flush
       
       # Raise to fail the test (errors already formatted above)
       # Include error and warning counts in message so they can be extracted even if exception is caught
       raise "ACCESSIBILITY ERRORS FOUND: #{error_count} error(s), #{warning_count} warning(s) - see details above"
     elsif @accessibility_warnings.any?
+      # Check config for errors_only flag
+      errors_only = false
+      begin
+        require 'rails_accessibility_testing/config/yaml_loader'
+        profile = defined?(Rails) && Rails.env.test? ? :test : :development
+        config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+        summary_config = config['summary'] || {}
+        errors_only = summary_config.fetch('errors_only', false)
+      rescue StandardError
+        # Use default if config can't be loaded
+      end
+      
       # Check if we're in live scanner mode - skip warnings in live scanner
       is_live_scanner = caller.any? { |line| line.include?('a11y_live_scanner') }
       
-      if !is_live_scanner
+      if !is_live_scanner && !errors_only
         # Only warnings, no errors - show warnings and indicate test passed with warnings
         puts format_all_warnings(@accessibility_warnings)
-        puts "\n" + "="*70
-        puts "📊 SUMMARY: Test passed with #{@accessibility_warnings.length} warning#{'s' if @accessibility_warnings.length != 1}"
-        puts "   ✓ #{timestamp}"
-        puts "="*70
-        puts "\n✅ Accessibility checks completed with warnings (test passed, but please address warnings above)"
-        puts "   📄 Page: #{page_context_info[:path] || 'current page'}"
-        puts "   📝 View: #{page_context_info[:view_file] || 'unknown'}"
+        puts "📊 #{@accessibility_warnings.length} warning#{'s' if @accessibility_warnings.length != 1}"
       else
-        # Live scanner - just show success
-        puts "\n" + "="*70
-        puts "✅ All checks passed (no errors)"
-        puts "="*70
+        # Live scanner or errors_only - just show success
+        puts "✅ No errors"
       end
     else
       # All checks passed with no errors and no warnings - show success message
@@ -412,70 +426,51 @@ module RailsAccessibilityTesting
     }
   end
 
-  # Format all collected errors with summary at top and details at bottom
+  # Format all collected errors - compact format grouped by file
   def format_all_errors(errors)
     return "" if errors.empty?
     
-    timestamp = format_timestamp_for_terminal
+    # Group errors by view file
+    errors_by_file = errors.group_by { |e| e[:page_context][:view_file] || e[:page_context][:path] || 'unknown' }
     
     output = []
     output << "\n" + "="*70
-    output << "❌ ACCESSIBILITY ERRORS FOUND: #{errors.length} issue(s) • #{timestamp}"
+    output << "❌ #{errors.length} error#{'s' if errors.length != 1} found"
     output << "="*70
     output << ""
-    output << "📋 SUMMARY OF ISSUES:"
-    output << ""
     
-    # Summary list at top
-    errors.each_with_index do |error, index|
-      error_type = error[:error_type]
-      page_context = error[:page_context]
-      element_context = error[:element_context]
+    # Show errors grouped by file with clear spacing
+    errors_by_file.each_with_index do |(file_path, file_errors), file_index|
+      # Add spacing between files (except first)
+      output << "" if file_index > 0
       
-      # Build summary line - prioritize view file
-      summary = "   #{index + 1}. #{error_type}"
+      # File header
+      output << "📝 #{file_path} (#{file_errors.length} error#{'s' if file_errors.length != 1})"
       
-      # Add view file prominently first
-      if page_context[:view_file]
-        summary += "\n      📝 File: #{page_context[:view_file]}"
+      # List errors for this file
+      file_errors.each_with_index do |error, index|
+        error_type = error[:error_type]
+        element_context = error[:element_context]
+        
+        # Compact error line
+        error_line = "   • #{error_type}"
+        
+        # Add element identifier if available (compact)
+        if element_context[:id].present?
+          error_line += " [id: #{element_context[:id]}]"
+        elsif element_context[:href].present?
+          href_display = element_context[:href].length > 30 ? "#{element_context[:href][0..27]}..." : element_context[:href]
+          error_line += " [href: #{href_display}]"
+        elsif element_context[:src].present?
+          src_display = element_context[:src].length > 30 ? "#{element_context[:src][0..27]}..." : element_context[:src]
+          error_line += " [src: #{src_display}]"
+        end
+        
+        output << error_line
       end
-      
-      # Add element identifier if available
-      if element_context[:id].present?
-        summary += "\n      🔍 Element: [id: #{element_context[:id]}]"
-      elsif element_context[:href].present?
-        href_display = element_context[:href].length > 40 ? "#{element_context[:href][0..37]}..." : element_context[:href]
-        summary += "\n      🔍 Element: [href: #{href_display}]"
-      elsif element_context[:src].present?
-        src_display = element_context[:src].length > 40 ? "#{element_context[:src][0..37]}..." : element_context[:src]
-        summary += "\n      🔍 Element: [src: #{src_display}]"
-      end
-      
-      # Add path as fallback if no view file
-      if !page_context[:view_file] && page_context[:path]
-        summary += "\n      🔗 Path: #{page_context[:path]}"
-      end
-      
-      output << summary
     end
     
     output << ""
-    output << "="*70
-    output << "📝 DETAILED ERROR DESCRIPTIONS:"
-    output << "="*70
-    output << ""
-    
-    # Detailed descriptions at bottom
-    errors.each_with_index do |error, index|
-      output << "\n" + "-"*70
-      output << "ERROR #{index + 1} of #{errors.length}:"
-      output << "-"*70
-      output << error[:message]
-    end
-    
-    output << ""
-    output << "="*70
-    output << "💡 Fix all issues above, then re-run the accessibility checks"
     output << "="*70
     output << ""
     
