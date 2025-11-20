@@ -52,8 +52,6 @@ This creates:
 - `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
 
-**Note:** If you already have system tests set up in your Rails application, you can skip to Step 3. If you need help configuring Capybara or installing Chrome, see the [Troubleshooting section](#troubleshooting) below.
-
 ### Step 3: Run Your Tests
 
 The generator creates `spec/system/all_pages_accessibility_spec.rb` which automatically tests all GET routes in your application.
