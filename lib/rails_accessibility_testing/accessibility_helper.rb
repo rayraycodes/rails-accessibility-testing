@@ -234,22 +234,25 @@ module RailsAccessibilityTesting
         path: safe_page_path
       }
       
-      # Progress callback for real-time feedback
+      # Progress callback for real-time feedback - show dots only
       progress_callback = lambda do |check_number, total_checks, check_name, status, data = nil|
         case status
         when :start
-          print "  [#{check_number}/#{total_checks}] Checking #{check_name}... "
+          print "."
           $stdout.flush
         when :passed
-          puts "✓"
+          # Already printed dot, no need to print anything
         when :found_issues
-          puts "✗ Found #{data} issue#{'s' if data != 1}"
+          # Already printed dot, no need to print anything
         when :error
-          puts "⚠ Error: #{data}"
+          # Already printed dot, no need to print anything
         end
       end
       
       violations = engine.check(page, context: context, progress_callback: progress_callback)
+      
+      # Print newline after dots
+      puts ""
       
       # Convert violations to our error/warning format
       violations.each do |violation|

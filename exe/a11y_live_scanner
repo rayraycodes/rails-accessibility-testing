@@ -113,53 +113,27 @@ def check_page(path, url = nil)
       return nil
     end
     
-    # Show what we're about to scan
-    puts "\n" + "="*70
-    puts "🔍 Starting accessibility scan..."
-    puts "="*70
-    puts "📍 Path: #{path}"
-    puts "🔗 URL: #{url || path}"
-    puts "⏰ Time: #{Time.now.strftime('%H:%M:%S')}"
-    puts "="*70
-    puts ""
-    
-    # Visit the page
-    puts "  🌐 Loading page..."
+    # Visit the page silently
     visit path
     
     # Check for cancellation after page load
     if $scan_cancelled || $current_scan_target != path
-      puts "⏭️  Scan cancelled - user navigated to different page"
       return nil
     end
     
-    # Capybara already waits for page load, no need for explicit sleep
-    # Only wait if page hasn't loaded (Capybara handles this automatically)
-    
     # Get page details
     current_url = page.current_url rescue path
-    page_title = page.title rescue 'Unknown'
     
     # Skip if redirected to sign in
     if current_url.include?('sign_in') || current_url.include?('login')
       puts "⏭️  Skipping #{path}: requires authentication"
-      puts "   Redirected to: #{current_url}"
       return nil
     end
     
     # Check for cancellation before running checks
     if $scan_cancelled || $current_scan_target != path
-      puts "⏭️  Scan cancelled - user navigated to different page"
       return nil
     end
-    
-    # Show page details
-    puts "  ✓ Page loaded successfully"
-    puts "  📄 Title: #{page_title}"
-    puts "  🔗 Final URL: #{current_url}"
-    puts ""
-    puts "  🔍 Running accessibility checks..."
-    puts ""
     
     # Run accessibility checks using Capybara page directly
     # Verify AccessibilityHelper is available
@@ -192,12 +166,15 @@ def check_page(path, url = nil)
       return nil
     end
     
-    # Show scan completion
+    # Show scan completion - only show errors in live scanner
     puts ""
     puts "="*70
-    puts "✅ Scan completed for: #{path}"
-    if result && result.is_a?(Hash)
-      puts "   Errors: #{result[:errors] || 0}, Warnings: #{result[:warnings] || 0}"
+    if result && result.is_a?(Hash) && result[:errors] && result[:errors] > 0
+      puts "❌ Found #{result[:errors]} error#{'s' if result[:errors] != 1} in: #{path}"
+      view_file = result[:page_context][:view_file] if result[:page_context]
+      puts "   📝 File: #{view_file}" if view_file
+    else
+      puts "✅ No errors found in: #{path}"
     end
     puts "="*70
     puts ""
