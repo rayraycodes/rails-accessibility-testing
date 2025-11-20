@@ -327,6 +327,7 @@ This release introduces significant improvements to view file detection, partial
 - Compatible with RSpec Rails 6.0+
 - Modular architecture with rule engine and check definitions
 
+[1.5.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.3
 [1.5.2]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.2
 [1.5.0]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.5.0
 [1.4.3]: https://github.com/rayraycodes/rails-accessibility-testing/releases/tag/v1.4.3
