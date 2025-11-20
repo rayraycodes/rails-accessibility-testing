@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2024-11-20
+
+### Fixed
+- **Gem packaging**: Verified all required files are included in gem package
+  - All executables (rails_a11y, rails_server_safe, a11y_live_scanner)
+  - All generator templates (.erb files)
+  - Complete library files and documentation
+
+### Verified
+- All executables properly included in gemspec
+- Generator templates correctly packaged
+- rails_server_safe Ruby script working correctly
+- Local development setup confirmed working
+
 ## [1.5.2] - 2024-11-20
 
 ### Fixed
