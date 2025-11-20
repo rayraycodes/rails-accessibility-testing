@@ -100,7 +100,7 @@ This creates:
 - `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that dynamically tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
 - Updates `Procfile.dev` with live accessibility scanner (if present)
-  - Uses `rails_server_safe` wrapper to prevent Foreman from terminating processes
+  - Optionally uses `rails_server_safe` wrapper (convenience helper, not required)
 
 ### Setup (Option 2: Manual)
 
