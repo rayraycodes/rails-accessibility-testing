@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2024-11-20
+
+### Fixed
+- **Bundler compatibility**: Converted `rails_server_safe` from shell script to Ruby script to fix Bundler wrapper loading issues
+- **Generator Procfile.dev setup**: Generator now automatically uses `rails_server_safe` in Procfile.dev to prevent Foreman from terminating all processes when server is already running
+
+### Changed
+- Generator behavior: When installing, automatically replaces `web: bin/rails server` with `web: bundle exec rails_server_safe` in existing Procfile.dev files
+- Generator behavior: When creating new Procfile.dev, uses `rails_server_safe` by default
+
+## [1.5.1] - 2024-11-20
+
 ## [1.5.0] - 2025-11-19
 
 ### 🎉 Major Release: Enhanced View Detection & Performance Optimizations
