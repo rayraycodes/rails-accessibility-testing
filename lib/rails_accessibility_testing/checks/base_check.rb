@@ -80,11 +80,20 @@ module RailsAccessibilityTesting
       # @param element_context [Hash] Optional element context to help find partials
       # @return [Hash]
       def page_context(element_context = nil)
-        {
-          url: safe_page_url,
-          path: safe_page_path,
-          view_file: determine_view_file(element_context)
-        }
+        # For static scanning, use view_file from context if available
+        if @context && @context[:view_file]
+          {
+            url: nil,
+            path: nil,
+            view_file: @context[:view_file]
+          }
+        else
+          {
+            url: safe_page_url,
+            path: safe_page_path,
+            view_file: determine_view_file(element_context)
+          }
+        end
       end
       
       # Get element context from Capybara element
