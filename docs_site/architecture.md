@@ -43,6 +43,8 @@ graph TB
             PartialDetector[Partial Detection]
             ChangeDetector[Change Detector]
             Cache[Page Scanning Cache]
+            StaticScanner[Static File Scanner]
+            FileChangeTracker[File Change Tracker]
         end
         
         subgraph "Configuration"
@@ -91,12 +93,22 @@ graph TB
     CLI --> RuleEngine
     Routes --> ViewDetector
     
+    StaticScanner --> FileChangeTracker
+    StaticScanner --> ErbExtractor[ErbExtractor]
+    ErbExtractor --> StaticAdapter[StaticPageAdapter]
+    StaticAdapter --> RuleEngine
+    StaticScanner --> LineFinder[LineNumberFinder]
+    StaticScanner --> ViolationConverter[ViolationConverter]
+    ViolationConverter --> ErrorBuilder
+    
     style Entry fill:#ff6b6b
     style RuleEngine fill:#4ecdc4
     style Checks fill:#45b7d1
     style ViewDetector fill:#96ceb4
     style ErrorBuilder fill:#ffeaa7
     style Cache fill:#a29bfe
+    style StaticScanner fill:#feca57
+    style FileChangeTracker fill:#ff9ff3
 ```
 
 ---
@@ -529,5 +541,145 @@ The Rails Accessibility Testing gem provides:
 
 **For more details, see the [ARCHITECTURE.md](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/ARCHITECTURE.md) file in the repository.**
 
-**Version**: 1.5.0  
+---
+
+## Static Scanning System (NEW in 1.5.3+)
+
+The static scanning system allows scanning view files directly without browser rendering, providing fast feedback during development. It's the recommended approach for continuous development testing via `bin/dev`.
+
+### Architecture Overview
+
+The static scanner uses a modular, pipeline-based architecture:
+
+```
+ERB Template → ErbExtractor → HTML → StaticPageAdapter → RuleEngine → Checks → Violations → ViolationConverter → Errors/Warnings
+```
+
+### Components
+
+1. **StaticFileScanner** - Main orchestrator
+   - Reads ERB template files from `app/views/**/*.html.erb`
+   - Coordinates the entire scanning pipeline
+   - Loads configuration via `YamlLoader`
+   - Creates `RuleEngine` instance with config
+   - Returns structured hash: `{ errors: [...], warnings: [...] }`
+
+2. **FileChangeTracker** - Change detection for static files
+   - **State File**: `tmp/.rails_a11y_scanned_files.json`
+   - **Purpose**: Tracks file modification times (mtime) to detect changes
+   - **Methods**:
+     - `load_state`: Reads JSON state file, returns hash of `{ file_path => mtime }`
+     - `changed_files(files)`: Compares current mtimes with stored state, returns changed/new files
+     - `update_state(files)`: Updates state file with current mtimes (atomic write)
+     - `clear_state`: Clears state file (forces full rescan)
+   - **Atomic Writes**: Uses temp file + `mv` to prevent partial writes
+
+3. **ErbExtractor** - ERB to HTML conversion
+   - **Purpose**: Converts Rails helpers to HTML placeholders for static analysis
+   - **Supported Helpers**: Form helpers, images, links, buttons (15+ helpers)
+   - **Process**: Convert helpers → Remove ERB tags → Clean whitespace
+
+4. **StaticPageAdapter** - Capybara compatibility layer
+   - **Purpose**: Makes Nokogiri documents look like Capybara pages
+   - **Key Methods**: `all(selector)`, `has_css?(selector)`, etc.
+   - **Benefit**: Allows reuse of existing checks without modification
+
+5. **LineNumberFinder** - Precise error location
+   - **Purpose**: Maps HTML elements back to original ERB line numbers
+   - **Matching Strategy**: id → src → href → type → tag name
+   - **Returns**: 1-indexed line number or `nil`
+
+6. **ViolationConverter** - Result formatting
+   - **Purpose**: Converts raw `Violation` objects to structured errors/warnings
+   - **Process**: Find line numbers → Categorize → Filter warnings if `ignore_warnings: true`
+   - **Warning Detection**: Skip links and ARIA landmarks → warnings
+
+### Static Scanner Flow
+
+```mermaid
+graph TB
+    Start[a11y_static_scanner Startup] --> LoadConfig[Load accessibility.yml]
+    LoadConfig --> LoadState[FileChangeTracker.load_state]
+    LoadState --> GetFiles[Get all view files]
+    GetFiles --> Decision{scan_changed_only?}
+    
+    Decision -->|false| ScanAll[Scan ALL files]
+    Decision -->|true| CheckStartup{full_scan_on_startup?}
+    
+    CheckStartup -->|true| ScanAll
+    CheckStartup -->|false| CheckChanged[FileChangeTracker.changed_files]
+    
+    CheckChanged --> ChangedEmpty{Changed files empty?}
+    ChangedEmpty -->|yes| WatchLoop[Enter watch loop]
+    ChangedEmpty -->|no| ScanChanged[Scan changed files only]
+    
+    ScanAll --> ScanFile[For each file: StaticFileScanner.scan]
+    ScanChanged --> ScanFile
+    
+    ScanFile --> ReadFile[Read ERB file content]
+    ReadFile --> Extract[ErbExtractor.extract_html]
+    Extract --> Parse[Nokogiri.parse HTML]
+    Parse --> Adapter[StaticPageAdapter.new]
+    Adapter --> Engine[RuleEngine.new]
+    Engine --> RunChecks[Run all 11 enabled checks]
+    RunChecks --> Convert[ViolationConverter.convert]
+    Convert --> FindLines[LineNumberFinder.find_line_number]
+    FindLines --> Filter{ignore_warnings?}
+    Filter -->|true| RemoveWarnings[Remove warnings]
+    Filter -->|false| KeepAll[Keep errors + warnings]
+    RemoveWarnings --> Format[Format errors/warnings]
+    KeepAll --> Format
+    Format --> UpdateState[FileChangeTracker.update_state]
+    UpdateState --> Output[Display results]
+    
+    Output --> Continuous{scan_changed_only?}
+    Continuous -->|true| WatchLoop
+    Continuous -->|false| Exit[Exit]
+    
+    WatchLoop --> Sleep[sleep check_interval]
+    Sleep --> CheckAgain[FileChangeTracker.changed_files]
+    CheckAgain --> HasChanges{Has changes?}
+    HasChanges -->|yes| ScanChanged
+    HasChanges -->|no| Sleep
+    
+    style Start fill:#ff6b6b
+    style ScanFile fill:#4ecdc4
+    style Extract fill:#ff9ff3
+    style Adapter fill:#48dbfb
+    style Engine fill:#feca57
+    style FindLines fill:#ff6b6b
+    style Format fill:#ffeaa7
+```
+
+### Configuration Flags
+
+All configuration is done via `config/accessibility.yml`:
+
+#### Static Scanner Configuration (`static_scanner`)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `scan_changed_only` | Boolean | `true` | Only scan files that have changed since last scan |
+| `check_interval` | Integer | `3` | Seconds between file change checks when running continuously |
+| `full_scan_on_startup` | Boolean | `true` | Force full scan of all files on startup |
+
+#### Summary Configuration (`summary`)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `ignore_warnings` | Boolean | `false` | Filter out warnings completely - only show errors |
+| `show_summary` | Boolean | `true` | Show summary at end of test suite (RSpec only) |
+| `errors_only` | Boolean | `false` | Show only errors in summary, hide warnings (RSpec only) |
+| `show_fixes` | Boolean | `true` | Show fix suggestions in error messages |
+
+### Benefits
+
+- **Fast**: No browser needed - scans ERB templates directly (~10-100x faster)
+- **Precise**: Reports exact file locations and line numbers
+- **Efficient**: Only scans changed files using modification time tracking
+- **Continuous**: Runs continuously, watching for file changes
+- **Reusable**: Leverages existing RuleEngine and all 11 checks
+- **Configurable**: Full control via YAML with profile support
+
+**Version**: 1.5.5  
 **Last Updated**: 2025-11-20
