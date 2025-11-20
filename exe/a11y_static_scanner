@@ -195,15 +195,15 @@ begin
   if all_errors.any? || all_warnings.any?
     puts format_errors(all_errors, all_warnings)
     puts ""
-    puts "💡 Fix the errors above, then restart bin/dev to re-scan"
+    puts "💡 Fix the errors above - scanner will re-run automatically"
     puts ""
   else
     puts "✅ All #{view_files.length} view file#{'s' if view_files.length != 1} passed accessibility checks!"
     puts ""
   end
   
-  # Exit with error code if errors found
-  exit 1 if all_errors.any?
+  # Always exit with success code so Foreman doesn't kill other processes
+  # Errors are displayed above, so developer can see them
   exit 0
   
 rescue Interrupt
