@@ -578,8 +578,28 @@
       const overlay = document.getElementById('diagram-fullscreen-overlay');
       const content = overlay.querySelector('.diagram-fullscreen-content');
 
-      // Clone the diagram
-      const clone = diagramElement.cloneNode(true);
+      // Get the original Mermaid code from the source
+      let mermaidCode = null;
+      const originalPre = diagramElement.closest('pre');
+      if (originalPre) {
+        const codeBlock = originalPre.querySelector('code.language-mermaid');
+        if (codeBlock) {
+          mermaidCode = codeBlock.textContent || codeBlock.innerText;
+        }
+      }
+      
+      // If we can't find the code, try to find it from all code blocks
+      if (!mermaidCode) {
+        const allCodeBlocks = document.querySelectorAll('code.language-mermaid');
+        for (const codeBlock of allCodeBlocks) {
+          const parentPre = codeBlock.closest('pre');
+          if (parentPre && parentPre.querySelector('.mermaid') === diagramElement) {
+            mermaidCode = codeBlock.textContent || codeBlock.innerText;
+            break;
+          }
+        }
+      }
+      
       content.innerHTML = '';
       
       // Create wrapper for zoom and drag functionality
@@ -594,15 +614,40 @@
       wrapper.style.minWidth = '100%';
       wrapper.style.minHeight = '100%';
       
-      wrapper.appendChild(clone);
+      // If we have the Mermaid code, create a new div and let Mermaid render it
+      if (mermaidCode) {
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = mermaidCode;
+        mermaidDiv.style.display = 'block';
+        mermaidDiv.style.visibility = 'visible';
+        mermaidDiv.style.opacity = '1';
+        wrapper.appendChild(mermaidDiv);
+        
+        // Re-render with Mermaid
+        mermaid.run({ nodes: [mermaidDiv] }).then(() => {
+          const svg = mermaidDiv.querySelector('svg');
+          if (svg) {
+            svg.style.display = 'block';
+            svg.style.visibility = 'visible';
+          }
+        });
+      } else {
+        // Fallback: clone the existing diagram
+        const clone = diagramElement.cloneNode(true);
+        clone.style.display = 'block';
+        clone.style.visibility = 'visible';
+        clone.style.opacity = '1';
+        wrapper.appendChild(clone);
+      }
+      
       content.appendChild(wrapper);
       
       // Ensure content can scroll to show entire diagram
       content.style.overflow = 'auto';
-      
-      // Make sure diagram is visible
-      clone.style.display = 'block';
-      clone.style.visibility = 'visible';
+      content.style.display = 'flex';
+      content.style.alignItems = 'center';
+      content.style.justifyContent = 'center';
 
       // Reset zoom and position
       currentZoom = 100;
@@ -612,22 +657,43 @@
       wrapper.style.transformOrigin = 'center center';
       updateZoomLevel(100);
       
-      // Center the diagram initially
-      setTimeout(() => {
-        const content = overlay.querySelector('.diagram-fullscreen-content');
-        if (content && wrapper) {
-          // Scroll to center
-          content.scrollTop = (content.scrollHeight - content.clientHeight) / 2;
-          content.scrollLeft = (content.scrollWidth - content.clientWidth) / 2;
-        }
-      }, 100);
-
       // Initialize drag functionality
       initDrag(wrapper);
 
       // Show overlay
       overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
+
+      // Ensure visibility and center after rendering
+      setTimeout(() => {
+        wrapper.style.display = 'flex';
+        wrapper.style.visibility = 'visible';
+        wrapper.style.opacity = '1';
+        
+        const mermaidEl = wrapper.querySelector('.mermaid');
+        if (mermaidEl) {
+          mermaidEl.style.display = 'block';
+          mermaidEl.style.visibility = 'visible';
+          mermaidEl.style.opacity = '1';
+        }
+        
+        const svg = wrapper.querySelector('svg');
+        if (svg) {
+          svg.style.display = 'block';
+          svg.style.visibility = 'visible';
+          svg.style.opacity = '1';
+        }
+        
+        // Center scroll position
+        setTimeout(() => {
+          if (content.scrollHeight > content.clientHeight) {
+            content.scrollTop = (content.scrollHeight - content.clientHeight) / 2;
+          }
+          if (content.scrollWidth > content.clientWidth) {
+            content.scrollLeft = (content.scrollWidth - content.clientWidth) / 2;
+          }
+        }, 200);
+      }, 300);
 
       // Focus on close button for accessibility
       const closeBtn = overlay.querySelector('.close-fullscreen-btn');
