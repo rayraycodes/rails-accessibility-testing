@@ -22,7 +22,7 @@ if [ -f "$PIDFILE" ]; then
         # Check if the server process is still running
         if ! kill -0 "$PID" 2>/dev/null; then
           echo "Server process ended. Exiting."
-      exit 0
+          exit 0
         fi
         sleep 5
       done
@@ -47,7 +47,7 @@ if lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   while true; do
     if ! lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
       echo "Port $PORT is now free. Exiting so Foreman can restart."
-  exit 0
+      exit 0
     fi
     sleep 5
   done
