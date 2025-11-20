@@ -248,6 +248,17 @@
       overflow: auto;
       position: relative;
       animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #diagram-zoom-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 100%;
+      min-height: 100%;
     }
 
     .diagram-fullscreen-content .mermaid {
@@ -573,21 +584,25 @@
       
       // Create wrapper for zoom and drag functionality
       const wrapper = document.createElement('div');
-      wrapper.style.width = 'fit-content';
-      wrapper.style.height = 'fit-content';
-      wrapper.style.minWidth = '100%';
-      wrapper.style.minHeight = '100%';
+      wrapper.id = 'diagram-zoom-wrapper';
       wrapper.style.display = 'flex';
       wrapper.style.alignItems = 'center';
       wrapper.style.justifyContent = 'center';
       wrapper.style.position = 'relative';
-      wrapper.id = 'diagram-zoom-wrapper';
+      wrapper.style.width = 'fit-content';
+      wrapper.style.height = 'fit-content';
+      wrapper.style.minWidth = '100%';
+      wrapper.style.minHeight = '100%';
       
       wrapper.appendChild(clone);
       content.appendChild(wrapper);
       
       // Ensure content can scroll to show entire diagram
       content.style.overflow = 'auto';
+      
+      // Make sure diagram is visible
+      clone.style.display = 'block';
+      clone.style.visibility = 'visible';
 
       // Reset zoom and position
       currentZoom = 100;
