@@ -5,681 +5,171 @@ title: Architecture
 
 # Architecture Overview
 
-This page provides visual diagrams and explanations of how the Rails Accessibility Testing gem works internally.
+Simple visual guide to how Rails Accessibility Testing works.
 
 ---
 
-## High-Level System Architecture
+## How It Works
 
-The gem integrates seamlessly into your Rails application through multiple layers:
+The gem integrates into your Rails app and automatically checks accessibility:
 
 ```mermaid
 graph TB
-    subgraph "Rails Application"
-        App[Your Rails App]
-        Tests[System Tests/Specs]
-        Views[Views & Partials]
-        Routes[Routes & Controllers]
+    subgraph "Your Rails App"
+        Tests[System Tests]
+        Views[View Files]
     end
     
-    subgraph "Rails Accessibility Testing Gem"
-        Entry[Gem Entry Point]
-        Railtie[Rails Integration Layer]
-        
-        subgraph "Test Integration"
-            RSpec[RSpec Integration]
-            Minitest[Minitest Integration]
-            AutoHook[Automatic Test Hooks]
-        end
-        
-        subgraph "Core Engine"
-            RuleEngine[Rule Engine]
-            Checks[11+ Accessibility Checks]
-            Collector[Violation Collector]
-        end
-        
-        subgraph "Intelligence Layer"
-            ViewDetector[View File Detector]
-            PartialDetector[Partial Detection]
-            ChangeDetector[Change Detector]
-            Cache[Page Scanning Cache]
-            StaticScanner[Static File Scanner]
-            FileChangeTracker[File Change Tracker]
-        end
-        
-        subgraph "Configuration"
-            YAMLConfig[YAML Config Loader]
-            Profiles[Profile Manager]
-            RubyConfig[Ruby Configuration]
-        end
-        
-        subgraph "Output & Reporting"
-            ErrorBuilder[Error Message Builder]
-            CLI[CLI Tool]
-            Reports[Reports & Logs]
-        end
+    subgraph "Rails A11y Gem"
+        Engine[Rule Engine]
+        Checks[11 Accessibility Checks]
+        Scanner[Static File Scanner]
     end
     
-    subgraph "Testing Tools"
-        Capybara[Capybara]
-        Selenium[Selenium WebDriver]
-        AxeCore[axe-core Engine]
-    end
+    Tests --> Engine
+    Views --> Scanner
+    Scanner --> Engine
+    Engine --> Checks
+    Checks --> Reports[Error Reports]
     
-    Tests --> RSpec
-    Tests --> Minitest
-    RSpec --> AutoHook
-    Minitest --> AutoHook
-    App --> Railtie
-    Entry --> Railtie
-    
-    AutoHook --> Cache
-    Cache --> ViewDetector
-    ViewDetector --> ChangeDetector
-    ChangeDetector --> RuleEngine
-    RuleEngine --> YAMLConfig
-    YAMLConfig --> Profiles
-    RuleEngine --> Checks
-    Checks --> Capybara
-    Capybara --> Selenium
-    Checks --> AxeCore
-    Checks --> ViewDetector
-    ViewDetector --> PartialDetector
-    PartialDetector --> Views
-    Checks --> Collector
-    Collector --> ErrorBuilder
-    ErrorBuilder --> Reports
-    
-    CLI --> RuleEngine
-    Routes --> ViewDetector
-    
-    StaticScanner --> FileChangeTracker
-    StaticScanner --> ErbExtractor[ErbExtractor]
-    ErbExtractor --> StaticAdapter[StaticPageAdapter]
-    StaticAdapter --> RuleEngine
-    StaticScanner --> LineFinder[LineNumberFinder]
-    StaticScanner --> ViolationConverter[ViolationConverter]
-    ViolationConverter --> ErrorBuilder
-    
-    style Entry fill:#ff6b6b
-    style RuleEngine fill:#4ecdc4
+    style Engine fill:#4ecdc4
+    style Scanner fill:#feca57
     style Checks fill:#45b7d1
-    style ViewDetector fill:#96ceb4
-    style ErrorBuilder fill:#ffeaa7
-    style Cache fill:#a29bfe
-    style StaticScanner fill:#feca57
-    style FileChangeTracker fill:#ff9ff3
 ```
 
 ---
 
-## Request Flow - How It Works
+## Two Ways to Scan
 
-This sequence diagram shows the complete flow when a test runs:
+### 1. System Tests (Browser-Based)
+
+Runs automatically when you visit pages in tests:
 
 ```mermaid
 sequenceDiagram
-    participant Dev as Developer
-    participant Test as Test Suite
-    participant Hook as Auto Hooks
-    participant Cache as Scan Cache
-    participant Detector as View Detector
-    participant Change as Change Detector
-    participant Engine as Rule Engine
-    participant Checks as 11 Check Modules
-    participant Capybara as Capybara/Browser
-    participant Collector as Violation Collector
-    participant Builder as Error Builder
-    participant Report as Test Report
+    participant Test as Your Test
+    participant Gem as Rails A11y
+    participant Browser as Browser
+    participant Checks as 11 Checks
     
-    Dev->>Test: Run test suite
-    Test->>Hook: Execute system test
-    Hook->>Test: visit('/some/path')
-    Test->>Capybara: Load page
-    Capybara->>Test: Page loaded
-    
-    rect rgb(200, 220, 250)
-        Note over Hook,Cache: Performance Optimization
-        Hook->>Cache: Check if page scanned
-        alt Page already scanned
-            Cache->>Hook: Skip (cached)
-        else Not in cache
-            Cache->>Detector: Continue with scan
-        end
-    end
-    
-    rect rgb(220, 250, 220)
-        Note over Detector,Change: Smart Detection
-        Detector->>Change: Check for file changes
-        Change->>Change: Analyze views/partials/assets
-        alt No changes detected
-            Change->>Hook: Skip scan (no changes)
-        else Changes detected
-            Change->>Engine: Proceed with checks
-        end
-    end
-    
-    rect rgb(250, 220, 220)
-        Note over Engine,Checks: Accessibility Checks
-        Engine->>Checks: Run enabled checks
-        loop For each check (11 total)
-            Checks->>Capybara: Query DOM elements
-            Capybara->>Checks: Return elements
-            Checks->>Checks: Validate WCAG rules
-            Checks->>Collector: Report violations
-        end
-    end
-    
-    rect rgb(250, 240, 200)
-        Note over Collector,Report: Error Reporting
-        Collector->>Detector: Map violations to files
-        Detector->>Detector: Find view files
-        Detector->>Detector: Detect partials
-        Detector->>Builder: Pass file locations
-        Builder->>Builder: Format error messages
-        Builder->>Report: Generate detailed report
-    end
-    
-    alt Violations found
-        Report->>Test: Fail with detailed errors
-        Test->>Dev: Show actionable errors
-    else No violations
-        Report->>Test: Pass
-        Test->>Dev: ✓ Accessibility checks passed
-    end
+    Test->>Browser: visit('/page')
+    Browser->>Gem: Page loaded
+    Gem->>Checks: Run all checks
+    Checks->>Gem: Report violations
+    Gem->>Test: Show errors with file locations
 ```
 
----
+### 2. Static Scanner (File-Based) ⭐ Recommended
 
-## Core Components
-
-### 1. Entry & Integration Layer
-
-The gem integrates with Rails through the Railtie system and automatically hooks into your test framework:
+Scans ERB files directly - faster, no browser needed:
 
 ```mermaid
 graph LR
-    A[Rails App Boots] --> B[Railtie Initializes]
-    B --> C[Load Configuration]
-    C --> D[Setup Test Hooks]
-    D --> E1[RSpec Integration]
-    D --> E2[Minitest Integration]
-    E1 --> F[Auto-run after each visit]
-    E2 --> F
+    A[ERB File] --> B[Extract HTML]
+    B --> C[Run Checks]
+    C --> D[Show Errors]
     
-    style B fill:#ff6b6b
-    style E1 fill:#74b9ff
-    style E2 fill:#a29bfe
+    style A fill:#ff6b6b
+    style C fill:#4ecdc4
+    style D fill:#ffeaa7
 ```
 
-**Key Files:**
-- `railtie.rb` - Rails initialization
-- `rspec_integration.rb` - RSpec auto-hooks
-- `integration/minitest_integration.rb` - Minitest helpers
+**Benefits:**
+- ⚡ 10-100x faster than browser-based
+- 📍 Shows exact file and line number
+- 🔄 Runs continuously in `bin/dev`
+- 🎯 Only scans changed files
 
 ---
 
-### 2. Core Rule Engine
+## Static Scanner Flow
 
-The rule engine orchestrates all accessibility checks:
+How the static scanner works:
 
 ```mermaid
 graph TB
-    A[Rule Engine] --> B[Load Configuration]
-    B --> C[Apply Profiles]
-    C --> D[Filter Enabled Checks]
-    D --> E[Execute Checks in Order]
+    Start[Start Scanner] --> Load[Load Config]
+    Load --> Check{Files Changed?}
+    Check -->|Yes| Scan[Scan Changed Files]
+    Check -->|No| Wait[Wait for Changes]
+    Scan --> Extract[Extract HTML from ERB]
+    Extract --> Run[Run 11 Checks]
+    Run --> Show[Show Errors]
+    Show --> Wait
+    Wait --> Check
     
-    E --> F1[Form Labels]
-    E --> F2[Image Alt Text]
-    E --> F3[Interactive Elements]
-    E --> F4[Heading Hierarchy]
-    E --> F5[Keyboard Access]
-    E --> F6[ARIA Landmarks]
-    E --> F7[Form Errors]
-    E --> F8[Table Structure]
-    E --> F9[Duplicate IDs]
-    E --> F10[Skip Links]
-    E --> F11[Color Contrast]
-    
-    F1 --> G[Collect Violations]
-    F2 --> G
-    F3 --> G
-    F4 --> G
-    F5 --> G
-    F6 --> G
-    F7 --> G
-    F8 --> G
-    F9 --> G
-    F10 --> G
-    F11 --> G
-    
-    style A fill:#4ecdc4
-    style G fill:#ffeaa7
-```
-
-**Key Features:**
-- Profile-based configuration (dev/test/ci)
-- Individual check enable/disable
-- WCAG 2.1 AA aligned checks
-- Violation aggregation
-
----
-
-### 3. Intelligence Layer (v1.5.0+)
-
-Smart detection and performance optimization:
-
-```mermaid
-graph TB
-    subgraph "View Detection System"
-        A[Page URL] --> B[Route Recognition]
-        B --> C{Exact Match?}
-        C -->|Yes| D[Found View File]
-        C -->|No| E[Fuzzy Matching]
-        E --> F[Scan Controller Dir]
-        F --> D
-        D --> G[Scan for Partials]
-        G --> H[Map Elements to Partials]
-    end
-    
-    subgraph "Performance System"
-        I[Page Visit] --> J{In Cache?}
-        J -->|Yes| K[Skip Scan]
-        J -->|No| L[Check Changes]
-        L --> M{Files Changed?}
-        M -->|No| N[Skip Scan]
-        M -->|Yes| O[Run Checks]
-        O --> P[Add to Cache]
-    end
-    
-    style B fill:#96ceb4
-    style J fill:#a29bfe
-    style L fill:#fdcb6e
-```
-
-**Key Features:**
-- **View File Detection**: Finds exact view file from URL
-- **Partial Detection**: Maps issues to specific partials
-- **Change Detection**: Only tests modified pages
-- **Page Cache**: Prevents duplicate scans
-
----
-
-### 4. Error Reporting System
-
-Generate actionable error messages with precise file locations:
-
-```mermaid
-graph TB
-    A[Violations Collected] --> B[View File Detector]
-    B --> C{Main View Found?}
-    C -->|Yes| D[Partial Detector]
-    C -->|No| E[URL Only]
-    D --> F{In Partial?}
-    F -->|Yes| G[Partial Path]
-    F -->|No| H[Main View Path]
-    
-    G --> I[Error Message Builder]
-    H --> I
-    E --> I
-    
-    I --> J[Format Message]
-    J --> K[Add Fix Suggestions]
-    K --> L[Add WCAG Reference]
-    L --> M[Add Element Context]
-    M --> N[Formatted Error Report]
-    
-    style B fill:#96ceb4
-    style I fill:#ffeaa7
-    style N fill:#ff7675
-```
-
-**Error Report Includes:**
-- Page URL and path
-- View file and partial location
-- Element details (tag, ID, classes)
-- Fix suggestions with code examples
-- WCAG 2.1 reference links
-
----
-
-## Data Flow Example
-
-### Scenario: Detecting an Image Without Alt Text
-
-```mermaid
-sequenceDiagram
-    participant T as Test
-    participant H as Accessibility Helper
-    participant C as Page Cache
-    participant V as View Detector
-    participant R as Rule Engine
-    participant I as Image Alt Check
-    participant P as Partial Detector
-    participant E as Error Builder
-    
-    T->>H: visit('/products/search')
-    H->>C: Check cache for '/products/search'
-    C->>H: Not in cache
-    H->>V: Detect view file
-    V->>V: Route → products#search_results
-    V->>V: Find search_results.html.erb
-    V->>H: View file located
-    H->>R: Run accessibility checks
-    R->>I: Execute image alt check
-    I->>I: Find all img elements
-    I->>I: Check for alt attribute
-    I->>I: Found violation: <img src="logo.png">
-    I->>P: Detect if in partial
-    P->>P: Scan search_results.html.erb
-    P->>P: Found render 'shared/header'
-    P->>P: Element is in _header.html.erb
-    P->>I: Partial location
-    I->>R: Report violation with context
-    R->>E: Build error message
-    E->>E: Format with file paths
-    E->>E: Add fix suggestions
-    E->>T: Fail test with detailed error
-    
-    rect rgb(255, 200, 200)
-        Note over T: Test fails with error showing:<br/>View: products/search_results.html.erb<br/>Partial: shared/_header.html.erb<br/>Fix: Add alt="Company Logo"
-    end
+    style Start fill:#ff6b6b
+    style Scan fill:#4ecdc4
+    style Show fill:#ffeaa7
 ```
 
 ---
 
-## Performance Optimization
+## What Gets Checked
 
-### Caching & Change Detection Strategy
+The gem runs **11 accessibility checks**:
 
-```mermaid
-graph TB
-    A[Page Visit] --> B{In Page Cache?}
-    B -->|Yes| C[Skip Scan]
-    B -->|No| D{First Run?}
-    D -->|Yes| E[Scan All Pages]
-    D -->|No| F{Files Changed?}
-    F -->|No| G[Skip Scan]
-    F -->|Yes| H[Smart Scan]
-    
-    H --> I{Which Files?}
-    I -->|View| J[Scan This Page]
-    I -->|Partial| K[Scan Pages Using Partial]
-    I -->|Helper| L[Scan All Pages]
-    I -->|Asset| M[Scan All Pages]
-    
-    E --> N[Add to Cache]
-    J --> N
-    K --> N
-    L --> N
-    M --> N
-    
-    style B fill:#a29bfe
-    style F fill:#fdcb6e
-    style N fill:#55efc4
-```
+1. Form Labels
+2. Image Alt Text
+3. Interactive Elements
+4. Heading Hierarchy
+5. Keyboard Accessibility
+6. ARIA Landmarks
+7. Form Errors
+8. Table Structure
+9. Duplicate IDs
+10. Skip Links
+11. Color Contrast
 
-### Impact Analysis
-
-Different file changes have different impacts:
-
-| File Type | Impact | Action |
-|-----------|--------|--------|
-| Main View | Single page | Test that page only |
-| Partial | Multiple pages | Test all pages using partial |
-| Controller | Controller routes | Test all routes for controller |
-| Helper | Global | Test all pages |
-| CSS/JS | Global | Test all pages |
-| Layout | Global | Test all pages |
+All checks are WCAG 2.1 AA aligned.
 
 ---
 
-## CLI Architecture
+## Configuration
 
-Command-line scanning for standalone usage:
+Everything is configured via `config/accessibility.yml`:
 
-```mermaid
-graph TB
-    A[rails_a11y CLI] --> B[Command Parser]
-    B --> C{Command Type?}
-    
-    C -->|check| D[URL/Path Scanner]
-    C -->|generate| E[Generator]
-    
-    D --> F[Start Rails Server]
-    F --> G[Visit URL]
-    G --> H[Run Checks]
-    H --> I[Generate Report]
-    
-    I --> J{Format?}
-    J -->|human| K[Pretty Terminal Output]
-    J -->|json| L[JSON Report File]
-    
-    style A fill:#6c5ce7
-    style I fill:#ffeaa7
-```
+```yaml
+# Enable/disable checks
+checks:
+  form_labels: true
+  image_alt_text: true
+  color_contrast: false  # Disabled by default (slow)
 
-**Commands:**
-- `check` - Scan URLs or routes
-- `--format json` - Generate JSON reports
-- `--profile ci` - Use specific profile
+# Static scanner settings
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  full_scan_on_startup: true  # Full scan on startup
+  check_interval: 3          # Seconds between checks
 
----
-
-## Extension Points
-
-### Adding Custom Checks
-
-The gem is designed to be extensible:
-
-```ruby
-# lib/custom_checks/my_check.rb
-module RailsAccessibilityTesting
-  module Checks
-    class MyCustomCheck < BaseCheck
-      def self.rule_name
-        :my_custom_check
-      end
-      
-      def check
-        violations = []
-        # Your check logic here
-        # Access: page, context, partial detection
-        violations
-      end
-    end
-  end
-end
+# Summary settings
+summary:
+  ignore_warnings: false  # Hide warnings, only show errors
 ```
 
 ---
 
-## Key Design Patterns
+## Key Components
 
-### 1. Modular Check System
+### Static Scanner Components
 
-Each check is self-contained and independently configurable.
+1. **StaticFileScanner** - Main orchestrator
+2. **FileChangeTracker** - Tracks which files changed
+3. **ErbExtractor** - Converts ERB to HTML
+4. **StaticPageAdapter** - Makes HTML work with checks
+5. **LineNumberFinder** - Maps errors to line numbers
+6. **ViolationConverter** - Formats results
 
-### 2. Progressive Enhancement
-
-- **Level 1**: Just add gem → automatic checks
-- **Level 2**: Configure via YAML → customize checks  
-- **Level 3**: Profiles → environment-specific configs
-- **Level 4**: Custom checks → extend functionality
-
-### 3. Smart Caching & Detection
-
-Performance optimizations that work transparently:
-- Page cache prevents duplicate scans
-- Change detection only tests modified files
-- First-run establishes baseline, then incremental
-
-### 4. Developer Experience First
-
-Every feature prioritizes DX:
-- Automatic hooks (zero configuration)
-- Detailed errors (exact file locations)
-- Fix suggestions (code examples)
-- Beautiful output (color-coded reports)
+All components work together to scan files and report errors with exact locations.
 
 ---
 
 ## Summary
 
-The Rails Accessibility Testing gem provides:
+✅ **Automatic** - Runs automatically in tests  
+✅ **Fast** - Static scanner is 10-100x faster  
+✅ **Precise** - Shows exact file and line number  
+✅ **Configurable** - Control via YAML  
+✅ **Simple** - Just add gem and run tests  
 
-✅ **Seamless Integration** - Auto-hooks into Rails test suite  
-✅ **Intelligent Detection** - Finds exact files to fix  
-✅ **Performance Optimized** - Smart caching and change detection  
-✅ **Developer Friendly** - Detailed errors with fix suggestions  
-✅ **Highly Configurable** - Profile-based configuration  
-✅ **Extensible** - Easy to add custom checks  
-✅ **Production Ready** - Comprehensive WCAG 2.1 AA checks  
-
----
-
-**For more details, see the [ARCHITECTURE.md](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/ARCHITECTURE.md) file in the repository.**
-
----
-
-## Static Scanning System (NEW in 1.5.3+)
-
-The static scanning system allows scanning view files directly without browser rendering, providing fast feedback during development. It's the recommended approach for continuous development testing via `bin/dev`.
-
-### Architecture Overview
-
-The static scanner uses a modular, pipeline-based architecture:
-
-```
-ERB Template → ErbExtractor → HTML → StaticPageAdapter → RuleEngine → Checks → Violations → ViolationConverter → Errors/Warnings
-```
-
-### Components
-
-1. **StaticFileScanner** - Main orchestrator
-   - Reads ERB template files from `app/views/**/*.html.erb`
-   - Coordinates the entire scanning pipeline
-   - Loads configuration via `YamlLoader`
-   - Creates `RuleEngine` instance with config
-   - Returns structured hash: `{ errors: [...], warnings: [...] }`
-
-2. **FileChangeTracker** - Change detection for static files
-   - **State File**: `tmp/.rails_a11y_scanned_files.json`
-   - **Purpose**: Tracks file modification times (mtime) to detect changes
-   - **Methods**:
-     - `load_state`: Reads JSON state file, returns hash of `{ file_path => mtime }`
-     - `changed_files(files)`: Compares current mtimes with stored state, returns changed/new files
-     - `update_state(files)`: Updates state file with current mtimes (atomic write)
-     - `clear_state`: Clears state file (forces full rescan)
-   - **Atomic Writes**: Uses temp file + `mv` to prevent partial writes
-
-3. **ErbExtractor** - ERB to HTML conversion
-   - **Purpose**: Converts Rails helpers to HTML placeholders for static analysis
-   - **Supported Helpers**: Form helpers, images, links, buttons (15+ helpers)
-   - **Process**: Convert helpers → Remove ERB tags → Clean whitespace
-
-4. **StaticPageAdapter** - Capybara compatibility layer
-   - **Purpose**: Makes Nokogiri documents look like Capybara pages
-   - **Key Methods**: `all(selector)`, `has_css?(selector)`, etc.
-   - **Benefit**: Allows reuse of existing checks without modification
-
-5. **LineNumberFinder** - Precise error location
-   - **Purpose**: Maps HTML elements back to original ERB line numbers
-   - **Matching Strategy**: id → src → href → type → tag name
-   - **Returns**: 1-indexed line number or `nil`
-
-6. **ViolationConverter** - Result formatting
-   - **Purpose**: Converts raw `Violation` objects to structured errors/warnings
-   - **Process**: Find line numbers → Categorize → Filter warnings if `ignore_warnings: true`
-   - **Warning Detection**: Skip links and ARIA landmarks → warnings
-
-### Static Scanner Flow
-
-```mermaid
-graph TB
-    Start[a11y_static_scanner Startup] --> LoadConfig[Load accessibility.yml]
-    LoadConfig --> LoadState[FileChangeTracker.load_state]
-    LoadState --> GetFiles[Get all view files]
-    GetFiles --> Decision{scan_changed_only?}
-    
-    Decision -->|false| ScanAll[Scan ALL files]
-    Decision -->|true| CheckStartup{full_scan_on_startup?}
-    
-    CheckStartup -->|true| ScanAll
-    CheckStartup -->|false| CheckChanged[FileChangeTracker.changed_files]
-    
-    CheckChanged --> ChangedEmpty{Changed files empty?}
-    ChangedEmpty -->|yes| WatchLoop[Enter watch loop]
-    ChangedEmpty -->|no| ScanChanged[Scan changed files only]
-    
-    ScanAll --> ScanFile[For each file: StaticFileScanner.scan]
-    ScanChanged --> ScanFile
-    
-    ScanFile --> ReadFile[Read ERB file content]
-    ReadFile --> Extract[ErbExtractor.extract_html]
-    Extract --> Parse[Nokogiri.parse HTML]
-    Parse --> Adapter[StaticPageAdapter.new]
-    Adapter --> Engine[RuleEngine.new]
-    Engine --> RunChecks[Run all 11 enabled checks]
-    RunChecks --> Convert[ViolationConverter.convert]
-    Convert --> FindLines[LineNumberFinder.find_line_number]
-    FindLines --> Filter{ignore_warnings?}
-    Filter -->|true| RemoveWarnings[Remove warnings]
-    Filter -->|false| KeepAll[Keep errors + warnings]
-    RemoveWarnings --> Format[Format errors/warnings]
-    KeepAll --> Format
-    Format --> UpdateState[FileChangeTracker.update_state]
-    UpdateState --> Output[Display results]
-    
-    Output --> Continuous{scan_changed_only?}
-    Continuous -->|true| WatchLoop
-    Continuous -->|false| Exit[Exit]
-    
-    WatchLoop --> Sleep[sleep check_interval]
-    Sleep --> CheckAgain[FileChangeTracker.changed_files]
-    CheckAgain --> HasChanges{Has changes?}
-    HasChanges -->|yes| ScanChanged
-    HasChanges -->|no| Sleep
-    
-    style Start fill:#ff6b6b
-    style ScanFile fill:#4ecdc4
-    style Extract fill:#ff9ff3
-    style Adapter fill:#48dbfb
-    style Engine fill:#feca57
-    style FindLines fill:#ff6b6b
-    style Format fill:#ffeaa7
-```
-
-### Configuration Flags
-
-All configuration is done via `config/accessibility.yml`:
-
-#### Static Scanner Configuration (`static_scanner`)
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `scan_changed_only` | Boolean | `true` | Only scan files that have changed since last scan |
-| `check_interval` | Integer | `3` | Seconds between file change checks when running continuously |
-| `full_scan_on_startup` | Boolean | `true` | Force full scan of all files on startup |
-
-#### Summary Configuration (`summary`)
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `ignore_warnings` | Boolean | `false` | Filter out warnings completely - only show errors |
-| `show_summary` | Boolean | `true` | Show summary at end of test suite (RSpec only) |
-| `errors_only` | Boolean | `false` | Show only errors in summary, hide warnings (RSpec only) |
-| `show_fixes` | Boolean | `true` | Show fix suggestions in error messages |
-
-### Benefits
-
-- **Fast**: No browser needed - scans ERB templates directly (~10-100x faster)
-- **Precise**: Reports exact file locations and line numbers
-- **Efficient**: Only scans changed files using modification time tracking
-- **Continuous**: Runs continuously, watching for file changes
-- **Reusable**: Leverages existing RuleEngine and all 11 checks
-- **Configurable**: Full control via YAML with profile support
-
-**Version**: 1.5.5  
-**Last Updated**: 2025-11-20
+**Version**: 1.5.5

@@ -578,28 +578,6 @@
       const overlay = document.getElementById('diagram-fullscreen-overlay');
       const content = overlay.querySelector('.diagram-fullscreen-content');
 
-      // Get the original Mermaid code from the source
-      let mermaidCode = null;
-      const originalPre = diagramElement.closest('pre');
-      if (originalPre) {
-        const codeBlock = originalPre.querySelector('code.language-mermaid');
-        if (codeBlock) {
-          mermaidCode = codeBlock.textContent || codeBlock.innerText;
-        }
-      }
-      
-      // If we can't find the code, try to find it from all code blocks
-      if (!mermaidCode) {
-        const allCodeBlocks = document.querySelectorAll('code.language-mermaid');
-        for (const codeBlock of allCodeBlocks) {
-          const parentPre = codeBlock.closest('pre');
-          if (parentPre && parentPre.querySelector('.mermaid') === diagramElement) {
-            mermaidCode = codeBlock.textContent || codeBlock.innerText;
-            break;
-          }
-        }
-      }
-      
       content.innerHTML = '';
       
       // Create wrapper for zoom and drag functionality
@@ -614,65 +592,27 @@
       wrapper.style.minWidth = '100%';
       wrapper.style.minHeight = '100%';
       
-      // If we have the Mermaid code, create a new div and let Mermaid render it
-      if (mermaidCode) {
-        const mermaidDiv = document.createElement('div');
-        mermaidDiv.className = 'mermaid';
-        mermaidDiv.textContent = mermaidCode;
-        mermaidDiv.style.display = 'block';
-        mermaidDiv.style.visibility = 'visible';
-        mermaidDiv.style.opacity = '1';
-        mermaidDiv.style.width = 'auto';
-        mermaidDiv.style.height = 'auto';
-        wrapper.appendChild(mermaidDiv);
-        
-        // Re-render with Mermaid
-        mermaid.run({ nodes: [mermaidDiv] }).then(() => {
-          const svg = mermaidDiv.querySelector('svg');
-          if (svg) {
-            svg.style.display = 'block';
-            svg.style.visibility = 'visible';
-            svg.style.opacity = '1';
-            svg.style.width = 'auto';
-            svg.style.height = 'auto';
-            svg.style.maxWidth = 'none';
-            svg.style.maxHeight = 'none';
-            svg.removeAttribute('style'); // Remove any inline styles that might hide it
-            svg.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; width: auto !important; height: auto !important;');
-          }
-          
-          // Also ensure the mermaid div itself is visible
-          mermaidDiv.style.display = 'block';
-          mermaidDiv.style.visibility = 'visible';
-          mermaidDiv.style.opacity = '1';
-        }).catch((err) => {
-          console.error('Mermaid rendering error:', err);
-          // Fallback: clone the existing diagram
-          const clone = diagramElement.cloneNode(true);
-          clone.style.display = 'block';
-          clone.style.visibility = 'visible';
-          clone.style.opacity = '1';
-          wrapper.appendChild(clone);
-        });
-      } else {
-        // Fallback: clone the existing diagram
-        const clone = diagramElement.cloneNode(true);
-        clone.style.display = 'block';
-        clone.style.visibility = 'visible';
-        clone.style.opacity = '1';
-        
-        // Ensure SVG in clone is visible
-        const svg = clone.querySelector('svg');
-        if (svg) {
-          svg.style.display = 'block';
-          svg.style.visibility = 'visible';
-          svg.style.opacity = '1';
-          svg.style.width = 'auto';
-          svg.style.height = 'auto';
-        }
-        
-        wrapper.appendChild(clone);
+      // Clone the existing rendered diagram (already has SVG)
+      const clone = diagramElement.cloneNode(true);
+      clone.style.display = 'block';
+      clone.style.visibility = 'visible';
+      clone.style.opacity = '1';
+      clone.style.width = 'auto';
+      clone.style.height = 'auto';
+      
+      // Ensure SVG in clone is visible
+      const svg = clone.querySelector('svg');
+      if (svg) {
+        // Remove any existing styles that might hide it
+        svg.removeAttribute('style');
+        // Set explicit visible styles
+        svg.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;';
+        svg.style.display = 'block';
+        svg.style.visibility = 'visible';
+        svg.style.opacity = '1';
       }
+      
+      wrapper.appendChild(clone);
       
       content.appendChild(wrapper);
       
@@ -697,46 +637,36 @@
       overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
 
-      // Ensure visibility and center after rendering
+      // Ensure visibility immediately (no need to wait, SVG is already rendered)
+      wrapper.style.display = 'flex';
+      wrapper.style.visibility = 'visible';
+      wrapper.style.opacity = '1';
+      wrapper.style.width = 'fit-content';
+      wrapper.style.height = 'fit-content';
+      
+      const mermaidEl = wrapper.querySelector('.mermaid');
+      if (mermaidEl) {
+        mermaidEl.style.display = 'block';
+        mermaidEl.style.visibility = 'visible';
+        mermaidEl.style.opacity = '1';
+        mermaidEl.style.width = 'auto';
+        mermaidEl.style.height = 'auto';
+      }
+      
+      const svg = wrapper.querySelector('svg');
+      if (svg) {
+        svg.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;';
+      }
+      
+      // Center scroll position after a brief moment
       setTimeout(() => {
-        wrapper.style.display = 'flex';
-        wrapper.style.visibility = 'visible';
-        wrapper.style.opacity = '1';
-        wrapper.style.width = 'fit-content';
-        wrapper.style.height = 'fit-content';
-        
-        const mermaidEl = wrapper.querySelector('.mermaid');
-        if (mermaidEl) {
-          mermaidEl.style.display = 'block';
-          mermaidEl.style.visibility = 'visible';
-          mermaidEl.style.opacity = '1';
-          mermaidEl.style.width = 'auto';
-          mermaidEl.style.height = 'auto';
+        if (content.scrollHeight > content.clientHeight) {
+          content.scrollTop = (content.scrollHeight - content.clientHeight) / 2;
         }
-        
-        const svg = wrapper.querySelector('svg');
-        if (svg) {
-          svg.style.display = 'block';
-          svg.style.visibility = 'visible';
-          svg.style.opacity = '1';
-          svg.style.width = 'auto';
-          svg.style.height = 'auto';
-          svg.style.maxWidth = 'none';
-          svg.style.maxHeight = 'none';
-          // Force visibility with important
-          svg.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;');
+        if (content.scrollWidth > content.clientWidth) {
+          content.scrollLeft = (content.scrollWidth - content.clientWidth) / 2;
         }
-        
-        // Center scroll position
-        setTimeout(() => {
-          if (content.scrollHeight > content.clientHeight) {
-            content.scrollTop = (content.scrollHeight - content.clientHeight) / 2;
-          }
-          if (content.scrollWidth > content.clientWidth) {
-            content.scrollLeft = (content.scrollWidth - content.clientWidth) / 2;
-          }
-        }, 200);
-      }, 500); // Increased timeout to ensure Mermaid has finished rendering
+      }, 100);
 
       // Focus on close button for accessibility
       const closeBtn = overlay.querySelector('.close-fullscreen-btn');
