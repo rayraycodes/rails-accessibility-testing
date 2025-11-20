@@ -477,70 +477,51 @@ module RailsAccessibilityTesting
     output.join("\n")
   end
 
-  # Format all collected warnings with summary at top and details at bottom (same format as errors)
+  # Format all collected warnings - compact format grouped by file
   def format_all_warnings(warnings)
     return "" if warnings.empty?
     
-    timestamp = format_timestamp_for_terminal
+    # Group warnings by view file
+    warnings_by_file = warnings.group_by { |w| w[:page_context][:view_file] || w[:page_context][:path] || 'unknown' }
     
     output = []
     output << "\n" + "="*70
-    output << "⚠️  ACCESSIBILITY WARNINGS FOUND: #{warnings.length} warning(s) • #{timestamp}"
+    output << "⚠️  #{warnings.length} warning#{'s' if warnings.length != 1} found"
     output << "="*70
     output << ""
-    output << "📋 SUMMARY OF WARNINGS:"
-    output << ""
     
-    # Summary list at top
-    warnings.each_with_index do |warning, index|
-      warning_type = warning[:warning_type]
-      page_context = warning[:page_context]
-      element_context = warning[:element_context]
+    # Show warnings grouped by file with clear spacing
+    warnings_by_file.each_with_index do |(file_path, file_warnings), file_index|
+      # Add spacing between files (except first)
+      output << "" if file_index > 0
       
-      # Build summary line - prioritize view file
-      summary = "   #{index + 1}. #{warning_type}"
+      # File header
+      output << "📝 #{file_path} (#{file_warnings.length} warning#{'s' if file_warnings.length != 1})"
       
-      # Add view file prominently first
-      if page_context[:view_file]
-        summary += "\n      📝 File: #{page_context[:view_file]}"
+      # List warnings for this file
+      file_warnings.each_with_index do |warning, index|
+        warning_type = warning[:warning_type]
+        element_context = warning[:element_context]
+        
+        # Compact warning line
+        warning_line = "   • #{warning_type}"
+        
+        # Add element identifier if available (compact)
+        if element_context[:id].present?
+          warning_line += " [id: #{element_context[:id]}]"
+        elsif element_context[:href].present?
+          href_display = element_context[:href].length > 30 ? "#{element_context[:href][0..27]}..." : element_context[:href]
+          warning_line += " [href: #{href_display}]"
+        elsif element_context[:src].present?
+          src_display = element_context[:src].length > 30 ? "#{element_context[:src][0..27]}..." : element_context[:src]
+          warning_line += " [src: #{src_display}]"
+        end
+        
+        output << warning_line
       end
-      
-      # Add element identifier if available
-      if element_context[:id].present?
-        summary += "\n      🔍 Element: [id: #{element_context[:id]}]"
-      elsif element_context[:href].present?
-        href_display = element_context[:href].length > 40 ? "#{element_context[:href][0..37]}..." : element_context[:href]
-        summary += "\n      🔍 Element: [href: #{href_display}]"
-      elsif element_context[:src].present?
-        src_display = element_context[:src].length > 40 ? "#{element_context[:src][0..37]}..." : element_context[:src]
-        summary += "\n      🔍 Element: [src: #{src_display}]"
-      end
-      
-      # Add path as fallback if no view file
-      if !page_context[:view_file] && page_context[:path]
-        summary += "\n      🔗 Path: #{page_context[:path]}"
-      end
-      
-      output << summary
     end
     
     output << ""
-    output << "="*70
-    output << "📝 DETAILED WARNING DESCRIPTIONS:"
-    output << "="*70
-    output << ""
-    
-    # Detailed descriptions at bottom
-    warnings.each_with_index do |warning, index|
-      output << "\n" + "-"*70
-      output << "WARNING #{index + 1} of #{warnings.length}:"
-      output << "-"*70
-      output << warning[:message]
-    end
-    
-    output << ""
-    output << "="*70
-    output << "💡 Consider addressing these warnings to improve accessibility"
     output << "="*70
     output << ""
     
