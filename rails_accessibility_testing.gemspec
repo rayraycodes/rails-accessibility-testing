@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
     "lib/**/*.rb",
     "lib/**/*.rake",
     "lib/**/*.md",
+    "lib/**/*.erb",  # Include ERB templates for generators
     "exe/**/*",
     "GUIDES/**/*.md",
     "docs_site/**/*",
