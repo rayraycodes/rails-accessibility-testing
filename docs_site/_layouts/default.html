@@ -168,6 +168,153 @@
       background: #f4f4f4;
       font-weight: 600;
     }
+
+    /* Mermaid diagram container styles */
+    .mermaid-container {
+      position: relative;
+      margin: 2rem 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1.5rem;
+      background: #fafafa;
+    }
+
+    .mermaid-container .mermaid {
+      margin: 0;
+      text-align: center;
+    }
+
+    /* Fullscreen button */
+    .fullscreen-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.3s, transform 0.2s;
+      z-index: 10;
+    }
+
+    .fullscreen-btn:hover {
+      background: #2980b9;
+      transform: scale(1.05);
+    }
+
+    .fullscreen-btn:focus {
+      outline: 2px solid #2c3e50;
+      outline-offset: 2px;
+    }
+
+    .fullscreen-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Fullscreen overlay */
+    .diagram-fullscreen-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9999;
+      overflow: auto;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .diagram-fullscreen-overlay.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .diagram-fullscreen-content {
+      background: white;
+      border-radius: 8px;
+      padding: 2rem;
+      max-width: 95vw;
+      max-height: 95vh;
+      overflow: auto;
+      position: relative;
+      animation: slideIn 0.3s ease;
+    }
+
+    .diagram-fullscreen-content .mermaid {
+      margin: 0;
+    }
+
+    /* Close button */
+    .close-fullscreen-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      z-index: 10000;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .close-fullscreen-btn:hover {
+      background: #c0392b;
+      transform: scale(1.05);
+    }
+
+    .close-fullscreen-btn:focus {
+      outline: 2px solid white;
+      outline-offset: 2px;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .diagram-fullscreen-content {
+        padding: 1rem;
+      }
+
+      .fullscreen-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+    }
   </style>
 </head>
 
@@ -182,29 +329,133 @@
     <p>&copy; {{ 'now' | date: "%Y" }} Rails Accessibility Testing. MIT License.</p>
     <p><a href="https://github.com/rayraycodes/rails-accessibility-testing" style="color: white;">GitHub</a></p>
   </footer>
-  
+
   <!-- Mermaid.js for diagram rendering - Load at end of body for better reliability -->
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    
+
     // Initialize Mermaid
-    mermaid.initialize({ 
-      startOnLoad: true, 
+    mermaid.initialize({
+      startOnLoad: true,
       theme: 'default',
       securityLevel: 'loose',
       flowchart: { useMaxWidth: true },
       sequence: { useMaxWidth: true },
       gantt: { useMaxWidth: true }
     });
-    
+
+    // Function to create fullscreen overlay
+    function createFullscreenOverlay() {
+      if (document.getElementById('diagram-fullscreen-overlay')) {
+        return; // Already exists
+      }
+
+      const overlay = document.createElement('div');
+      overlay.id = 'diagram-fullscreen-overlay';
+      overlay.className = 'diagram-fullscreen-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Fullscreen diagram viewer');
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'close-fullscreen-btn';
+      closeBtn.textContent = '✕ Close';
+      closeBtn.setAttribute('aria-label', 'Close fullscreen diagram');
+      closeBtn.onclick = closeFullscreen;
+
+      const content = document.createElement('div');
+      content.className = 'diagram-fullscreen-content';
+
+      overlay.appendChild(closeBtn);
+      overlay.appendChild(content);
+      document.body.appendChild(overlay);
+
+      // Close on overlay click (but not content click)
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          closeFullscreen();
+        }
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+          closeFullscreen();
+        }
+      });
+    }
+
+    // Function to open diagram in fullscreen
+    function openFullscreen(diagramElement) {
+      const overlay = document.getElementById('diagram-fullscreen-overlay');
+      const content = overlay.querySelector('.diagram-fullscreen-content');
+
+      // Clone the diagram
+      const clone = diagramElement.cloneNode(true);
+      content.innerHTML = '';
+      content.appendChild(clone);
+
+      // Show overlay
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+
+      // Focus on close button for accessibility
+      const closeBtn = overlay.querySelector('.close-fullscreen-btn');
+      closeBtn.focus();
+    }
+
+    // Function to close fullscreen
+    function closeFullscreen() {
+      const overlay = document.getElementById('diagram-fullscreen-overlay');
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Make closeFullscreen global for button onclick
+    window.closeFullscreen = closeFullscreen;
+
+    // Function to wrap diagrams in containers with fullscreen buttons
+    function wrapDiagramsWithButtons() {
+      const diagrams = document.querySelectorAll('.mermaid');
+
+      diagrams.forEach((diagram, index) => {
+        // Skip if already wrapped
+        if (diagram.parentElement.classList.contains('mermaid-container')) {
+          return;
+        }
+
+        // Create container
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+
+        // Create fullscreen button
+        const btn = document.createElement('button');
+        btn.className = 'fullscreen-btn';
+        btn.setAttribute('aria-label', `View diagram ${index + 1} in fullscreen`);
+        btn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <span>Fullscreen</span>
+        `;
+
+        btn.onclick = () => openFullscreen(diagram);
+
+        // Wrap diagram
+        diagram.parentNode.insertBefore(container, diagram);
+        container.appendChild(diagram);
+        container.appendChild(btn);
+      });
+    }
+
     // Function to process Mermaid diagrams
     function processMermaidDiagrams() {
       // Find all code blocks with mermaid language
       const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid');
-      
+
       if (mermaidBlocks.length > 0) {
         console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks');
-        
+
         // Process each block
         mermaidBlocks.forEach((block, index) => {
           // Get the parent pre element if it exists
@@ -212,19 +463,23 @@
           if (preElement && preElement.tagName === 'PRE') {
             // Get the mermaid code
             const mermaidCode = block.textContent || block.innerText;
-            
+
             // Create a div for Mermaid to render into
             const mermaidDiv = document.createElement('div');
             mermaidDiv.className = 'mermaid';
             mermaidDiv.textContent = mermaidCode;
-            
+
             // Replace the pre element with the mermaid div
             preElement.parentNode.replaceChild(mermaidDiv, preElement);
           }
         });
-        
+
         // Run Mermaid to render all diagrams
-        mermaid.run();
+        mermaid.run().then(() => {
+          // After rendering, wrap diagrams with fullscreen buttons
+          createFullscreenOverlay();
+          wrapDiagramsWithButtons();
+        });
       } else {
         // Fallback: look for pre > code blocks and check if they contain mermaid syntax
         const allCodeBlocks = document.querySelectorAll('pre code');
@@ -241,14 +496,18 @@
             }
           }
         });
-        
+
         // Run Mermaid after processing
         if (document.querySelectorAll('.mermaid').length > 0) {
-          mermaid.run();
+          mermaid.run().then(() => {
+            // After rendering, wrap diagrams with fullscreen buttons
+            createFullscreenOverlay();
+            wrapDiagramsWithButtons();
+          });
         }
       }
     }
-    
+
     // Process diagrams when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', processMermaidDiagrams);
