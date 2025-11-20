@@ -1,56 +1,66 @@
-#!/usr/bin/env sh
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
 # Safe wrapper for Rails server that doesn't fail if server is already running
 # This prevents Foreman from terminating all processes when server is already up
 
-PIDFILE="${PIDFILE:-tmp/pids/server.pid}"
-PORT="${PORT:-3000}"
+require 'fileutils'
+
+pidfile = ENV.fetch('PIDFILE', 'tmp/pids/server.pid')
+port = ENV.fetch('PORT', '3000').to_i
 
 # Check if PID file exists and process is running
-if [ -f "$PIDFILE" ]; then
-  PID=$(cat "$PIDFILE" 2>/dev/null)
+if File.exist?(pidfile)
+  pid = File.read(pidfile).strip.to_i rescue nil
   
-  # Check if the process is actually running
-  if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-    # Check if it's listening on the expected port
-    if lsof -ti:$PORT -sTCP:LISTEN | grep -q "^$PID$" 2>/dev/null; then
-      echo "Server is already running (pid: $PID, port: $PORT)"
-      echo "Keeping process alive for Foreman..."
-      # Keep the process alive by waiting indefinitely
-      while true; do
-        if ! kill -0 "$PID" 2>/dev/null; then
-          echo "Server process ended. Exiting."
-          exit 0
-        fi
-        sleep 5
-      done
-    else
-      # PID exists but not listening on port - stale PID file
-      echo "Removing stale PID file (pid: $PID not listening on port $PORT)"
-      rm -f "$PIDFILE"
-    fi
-  else
-    # PID file exists but process is dead - stale PID file
-    echo "Removing stale PID file (process $PID not running)"
-    rm -f "$PIDFILE"
-  fi
-fi
+  if pid && pid > 0
+    # Check if the process is actually running
+    begin
+      Process.kill(0, pid)
+      # Process is running, check if it's listening on the expected port
+      port_check = `lsof -ti:#{port} -sTCP:LISTEN 2>/dev/null`.strip
+      if port_check == pid.to_s
+        puts "Server is already running (pid: #{pid}, port: #{port})"
+        puts "Keeping process alive for Foreman..."
+        # Keep the process alive by waiting indefinitely
+        loop do
+          begin
+            Process.kill(0, pid)
+          rescue Errno::ESRCH
+            puts "Server process ended. Exiting."
+            exit 0
+          end
+          sleep 5
+        end
+      else
+        # PID exists but not listening on port - stale PID file
+        puts "Removing stale PID file (pid: #{pid} not listening on port #{port})"
+        FileUtils.rm_f(pidfile)
+      end
+    rescue Errno::ESRCH
+      # PID file exists but process is dead - stale PID file
+      puts "Removing stale PID file (process #{pid} not running)"
+      FileUtils.rm_f(pidfile)
+    end
+  end
+end
 
 # Check if something else is using the port
-if lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
-  EXISTING_PID=$(lsof -ti:$PORT -sTCP:LISTEN | head -1)
-  echo "Port $PORT is already in use by process $EXISTING_PID"
-  echo "Server may already be running. Keeping process alive for Foreman..."
+port_check = `lsof -ti:#{port} -sTCP:LISTEN 2>/dev/null`.strip
+if !port_check.empty?
+  existing_pid = port_check.split("\n").first.to_i
+  puts "Port #{port} is already in use by process #{existing_pid}"
+  puts "Server may already be running. Keeping process alive for Foreman..."
   # Keep the process alive by monitoring the existing server
-  while true; do
-    if ! lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
-      echo "Port $PORT is now free. Exiting so Foreman can restart."
+  loop do
+    port_check = `lsof -ti:#{port} -sTCP:LISTEN 2>/dev/null`.strip
+    if port_check.empty?
+      puts "Port #{port} is now free. Exiting so Foreman can restart."
       exit 0
-    fi
+    end
     sleep 5
-  done
-fi
+  end
+end
 
 # Start the server normally
-# Use exec to replace this process with rails server
-exec bin/rails server "$@"
+exec('bin/rails', 'server', *ARGV)
