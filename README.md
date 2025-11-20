@@ -99,7 +99,8 @@ This creates:
 - `config/accessibility.yml` - Check settings
 - `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that dynamically tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
-- Updates `Procfile.dev` with accessibility watch command (if present)
+- Updates `Procfile.dev` with live accessibility scanner (if present)
+  - Uses `rails_server_safe` wrapper to prevent Foreman from terminating processes
 
 ### Setup (Option 2: Manual)
 
@@ -445,6 +446,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 1. **🎯 Live Accessibility Scanner**
    - Real-time scanning as you browse during development
    - Integrated with `bin/dev` via Procfile.dev
+   - Uses `rails_server_safe` wrapper to prevent Foreman process termination issues
    - Smart cancellation when navigating to new pages
    - Detailed reporting showing exactly what's being scanned
 
