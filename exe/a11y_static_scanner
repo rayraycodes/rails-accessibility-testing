@@ -1,0 +1,216 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Static accessibility scanner for development
+# Scans all view files and shows accessibility errors
+# Usage: Add to Procfile.dev as: a11y: bundle exec a11y_static_scanner
+
+require 'bundler/setup'
+
+# Load Rails environment
+rails_root = Dir.pwd
+while rails_root != '/' && !File.exist?(File.join(rails_root, 'config', 'environment.rb'))
+  rails_root = File.dirname(rails_root)
+end
+
+if File.exist?(File.join(rails_root, 'config', 'environment.rb'))
+  Dir.chdir(rails_root)
+  require File.join(rails_root, 'config', 'environment')
+end
+
+# Require the gem
+begin
+  require 'rails_accessibility_testing'
+rescue LoadError => e
+  $stderr.puts "❌ Error loading rails_accessibility_testing gem: #{e.message}"
+  $stderr.puts "   Make sure the gem is installed: bundle install"
+  exit 1
+end
+
+# Format errors with file locations and line numbers
+def format_errors(errors, warnings)
+  return "" if errors.empty? && warnings.empty?
+  
+  output = []
+  
+  # Group errors by file
+  errors_by_file = errors.group_by { |e| e[:file] }
+  warnings_by_file = warnings.group_by { |w| w[:file] }
+  
+  # Show errors first
+  if errors.any?
+    output << "\n" + "="*70
+    output << "❌ #{errors.length} error#{'s' if errors.length != 1} found"
+    output << "="*70
+    output << ""
+    
+    errors_by_file.each_with_index do |(file_path, file_errors), file_index|
+      output << "" if file_index > 0
+      
+      # Show relative path
+      relative_path = file_path.sub(%r{^.*app/views/}, 'app/views/')
+      output << "📝 #{relative_path} (#{file_errors.length} error#{'s' if file_errors.length != 1})"
+      
+      file_errors.each do |error|
+        error_line = "   • #{error[:type]}"
+        
+        # Add line number if available
+        if error[:line]
+          error_line += " [Line #{error[:line]}]"
+        end
+        
+        # Add element identifier
+        if error[:element][:id].present?
+          error_line += " [id: #{error[:element][:id]}]"
+        elsif error[:element][:href].present?
+          href_display = error[:element][:href].length > 30 ? "#{error[:element][:href][0..27]}..." : error[:element][:href]
+          error_line += " [href: #{href_display}]"
+        elsif error[:element][:src].present?
+          src_display = error[:element][:src].length > 30 ? "#{error[:element][:src][0..27]}..." : error[:element][:src]
+          error_line += " [src: #{src_display}]"
+        end
+        
+        output << error_line
+      end
+    end
+    
+    output << ""
+    output << "="*70
+  end
+  
+  # Show warnings if any
+  if warnings.any?
+    output << "\n" + "="*70
+    output << "⚠️  #{warnings.length} warning#{'s' if warnings.length != 1} found"
+    output << "="*70
+    output << ""
+    
+    warnings_by_file.each_with_index do |(file_path, file_warnings), file_index|
+      output << "" if file_index > 0
+      
+      # Show relative path
+      relative_path = file_path.sub(%r{^.*app/views/}, 'app/views/')
+      output << "📝 #{relative_path} (#{file_warnings.length} warning#{'s' if file_warnings.length != 1})"
+      
+      file_warnings.each do |warning|
+        warning_line = "   • #{warning[:type]}"
+        
+        # Add line number if available
+        if warning[:line]
+          warning_line += " [Line #{warning[:line]}]"
+        end
+        
+        # Add element identifier
+        if warning[:element][:id].present?
+          warning_line += " [id: #{warning[:element][:id]}]"
+        elsif warning[:element][:href].present?
+          href_display = warning[:element][:href].length > 30 ? "#{warning[:element][:href][0..27]}..." : warning[:element][:href]
+          warning_line += " [href: #{href_display}]"
+        elsif warning[:element][:src].present?
+          src_display = warning[:element][:src].length > 30 ? "#{warning[:element][:src][0..27]}..." : warning[:element][:src]
+          warning_line += " [src: #{src_display}]"
+        end
+        
+        output << warning_line
+      end
+    end
+    
+    output << ""
+    output << "="*70
+  end
+  
+  output.join("\n")
+end
+
+# Get all view files
+def get_all_view_files
+  return [] unless defined?(Rails) && Rails.root
+  
+  view_dir = Rails.root.join('app', 'views')
+  return [] unless File.directory?(view_dir)
+  
+  extensions = %w[erb haml slim]
+  view_files = []
+  
+  extensions.each do |ext|
+    # Find all HTML view files (exclude partials that start with _)
+    pattern = File.join(view_dir, '**', "*.html.#{ext}")
+    Dir.glob(pattern).each do |file|
+      # Skip partials (files starting with _)
+      next if File.basename(file).start_with?('_')
+      # Skip layout files
+      next if file.include?('/layouts/')
+      view_files << file
+    end
+  end
+  
+  view_files.sort
+end
+
+# Main scanner
+begin
+  puts "\n" + "="*70
+  puts "🔍 Static Accessibility Scanner"
+  puts "="*70
+  puts "📁 Scanning all view files..."
+  puts ""
+  
+  view_files = get_all_view_files
+  
+  if view_files.empty?
+    puts "⚠️  No view files found to scan"
+    exit 0
+  end
+  
+  puts "📋 Found #{view_files.length} view file#{'s' if view_files.length != 1} to scan"
+  puts ""
+  
+  all_errors = []
+  all_warnings = []
+  
+  view_files.each do |view_file|
+    scanner = RailsAccessibilityTesting::StaticFileScanner.new(view_file)
+    result = scanner.scan
+    
+    errors = result[:errors] || []
+    warnings = result[:warnings] || []
+    
+    all_errors.concat(errors)
+    all_warnings.concat(warnings)
+    
+    # Show progress
+    if errors.any? || warnings.any?
+      print "."
+    else
+      print "."
+    end
+    $stdout.flush
+  end
+  
+  puts ""
+  puts ""
+  
+  # Show results
+  if all_errors.any? || all_warnings.any?
+    puts format_errors(all_errors, all_warnings)
+    puts ""
+    puts "💡 Fix the errors above, then restart bin/dev to re-scan"
+    puts ""
+  else
+    puts "✅ All #{view_files.length} view file#{'s' if view_files.length != 1} passed accessibility checks!"
+    puts ""
+  end
+  
+  # Exit with error code if errors found
+  exit 1 if all_errors.any?
+  exit 0
+  
+rescue Interrupt
+  puts "\n\n👋 Scanner stopped"
+  exit 0
+rescue StandardError => e
+  puts "\n\n❌ Error: #{e.message}"
+  puts e.backtrace.first(5).join("\n")
+  exit 1
+end
+

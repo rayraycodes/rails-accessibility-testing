@@ -70,14 +70,21 @@ module RailsA11y
                   
                   # Check if a11y line already exists
                   unless procfile_content.include?('a11y:')
-                    # Add live scanner to Procfile.dev
-                    a11y_line = "a11y: bundle exec a11y_live_scanner\n"
+                    # Add static scanner to Procfile.dev
+                    a11y_line = "a11y: bundle exec a11y_static_scanner\n"
                     procfile_content += a11y_line
                     modified = true
-                    say "✅ Added live accessibility scanner to #{procfile_path}", :green
-                    say "   💡 Run 'bin/dev' to start live scanning as you browse pages", :cyan
+                    say "✅ Added static accessibility scanner to #{procfile_path}", :green
+                    say "   💡 Run 'bin/dev' to scan all view files and show errors", :cyan
                   else
-                    say "⚠️  Procfile.dev already contains an a11y entry. Skipping.", :yellow
+                    # Update existing a11y line if it's using live scanner
+                    if procfile_content.include?('a11y_live_scanner')
+                      procfile_content.gsub!(/a11y:.*a11y_live_scanner/, 'a11y: bundle exec a11y_static_scanner')
+                      modified = true
+                      say "✅ Updated a11y scanner to static file scanner in #{procfile_path}", :green
+                    else
+                      say "⚠️  Procfile.dev already contains an a11y entry. Skipping.", :yellow
+                    end
                   end
                   
                   # Save if we made changes
@@ -87,36 +94,18 @@ module RailsA11y
                   # Use rails_server_safe to prevent Foreman termination issues
                   procfile_content = <<~PROCFILE
                     web: bundle exec rails_server_safe
-                    a11y: bundle exec a11y_live_scanner
+                    a11y: bundle exec a11y_static_scanner
                   PROCFILE
                   
                   File.write(procfile_path, procfile_content)
-                  say "✅ Created #{procfile_path} with live accessibility scanner", :green
+                  say "✅ Created #{procfile_path} with static accessibility scanner", :green
                   say "   💡 Using rails_server_safe to prevent Foreman process termination", :cyan
-                  say "   💡 Run 'bin/dev' to start live scanning as you browse pages", :cyan
+                  say "   💡 Run 'bin/dev' to scan all view files and show errors", :cyan
                 end
               end
       
       def update_gitignore
-        gitignore_path = '.gitignore'
-        
-        if File.exist?(gitignore_path)
-          gitignore_content = File.read(gitignore_path)
-          
-          # Add tmp files for live scanner if not already present
-          a11y_entries = [
-            'tmp/a11y_page_visits.log',
-            'tmp/a11y_scanned_pages.json'
-          ]
-          
-          a11y_entries.each do |entry|
-            unless gitignore_content.include?(entry)
-              gitignore_content += "\n#{entry}\n"
-            end
-          end
-          
-          File.write(gitignore_path, gitignore_content) if gitignore_content != File.read(gitignore_path)
-        end
+        # No longer needed - static scanner doesn't create tmp files
       end
       
       def show_instructions
@@ -126,9 +115,9 @@ module RailsA11y
         say "  1. Run the accessibility tests:", :cyan
         say "     bundle exec rspec spec/system/all_pages_accessibility_spec.rb"
         say ""
-        say "  2. For live scanning during development:", :cyan
-        say "     bin/dev  # Starts web server + live accessibility scanner"
-        say "     # Navigate to pages in your browser to see real-time reports!"
+        say "  2. For static file scanning during development:", :cyan
+        say "     bin/dev  # Starts web server + static accessibility scanner"
+        say "     # Scans all view files and shows errors automatically!"
         say ""
         say "  3. Create custom specs for specific pages:", :cyan
         say "     # spec/system/my_page_accessibility_spec.rb"

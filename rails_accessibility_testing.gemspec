@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   
   # Add executables (they're in exe/ directory)
   spec.bindir = "exe"
-  spec.executables = ["rails_a11y", "rails_server_safe", "a11y_live_scanner"]
+  spec.executables = ["rails_a11y", "rails_server_safe", "a11y_static_scanner"]
 
   # Runtime dependencies
   # Only essential dependencies for RSpec system specs

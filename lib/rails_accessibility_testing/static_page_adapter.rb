@@ -11,7 +11,6 @@ module RailsAccessibilityTesting
     def initialize(html_content, view_file:)
       @doc = Nokogiri::HTML::DocumentFragment.parse(html_content)
       @view_file = view_file
-      @line_map = build_line_map(html_content)
     end
 
     # Capybara-like interface: page.all('selector', visible: :all)
