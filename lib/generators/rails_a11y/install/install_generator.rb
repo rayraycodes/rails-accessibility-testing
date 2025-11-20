@@ -59,16 +59,10 @@ module RailsA11y
                 if File.exist?(procfile_path)
                   procfile_content = File.read(procfile_path)
                   
-                  # Update web line to use rails_server_safe if it's using bin/rails server
-                  if procfile_content.include?('web: bin/rails server') && !procfile_content.include?('rails_server_safe')
-                    procfile_content.gsub!(/^web: bin\/rails server$/, 'web: bundle exec rails_server_safe')
-                    say "✅ Updated web process to use rails_server_safe in #{procfile_path}", :green
-                    say "   💡 This prevents Foreman from terminating processes when server is already running", :cyan
-                  end
-                  
                   # Check if a11y line already exists
                   unless procfile_content.include?('a11y:')
                     # Add live scanner to Procfile.dev
+                    # Don't modify existing web line - leave it as is
                     a11y_line = "a11y: bundle exec a11y_live_scanner\n"
                     procfile_content += a11y_line
                     
@@ -76,21 +70,19 @@ module RailsA11y
                     say "✅ Added live accessibility scanner to #{procfile_path}", :green
                     say "   💡 Run 'bin/dev' to start live scanning as you browse pages", :cyan
                   else
-                    # Save the file if we updated the web line
-                    File.write(procfile_path, procfile_content) if procfile_content.include?('rails_server_safe')
                     say "⚠️  Procfile.dev already contains an a11y entry. Skipping.", :yellow
                   end
                 else
                   # Create Procfile.dev if it doesn't exist
-                  # Use rails_server_safe to prevent Foreman termination issues
+                  # Use standard Rails server (simpler and more reliable)
                   procfile_content = <<~PROCFILE
-                    web: bundle exec rails_server_safe
+                    web: bin/rails server
                     a11y: bundle exec a11y_live_scanner
                   PROCFILE
                   
                   File.write(procfile_path, procfile_content)
                   say "✅ Created #{procfile_path} with live accessibility scanner", :green
-                  say "   💡 Using rails_server_safe wrapper to prevent Foreman process termination", :cyan
+                  say "   💡 Run 'bin/dev' to start live scanning as you browse pages", :cyan
                 end
               end
       
