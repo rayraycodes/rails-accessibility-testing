@@ -512,7 +512,25 @@
       // Clone the diagram
       const clone = diagramElement.cloneNode(true);
       content.innerHTML = '';
-      content.appendChild(clone);
+      
+      // Create wrapper for zoom functionality
+      const wrapper = document.createElement('div');
+      wrapper.style.width = '100%';
+      wrapper.style.height = '100%';
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.justifyContent = 'center';
+      wrapper.style.overflow = 'auto';
+      wrapper.id = 'diagram-zoom-wrapper';
+      
+      wrapper.appendChild(clone);
+      content.appendChild(wrapper);
+
+      // Reset zoom
+      currentZoom = 100;
+      wrapper.style.transform = 'scale(1)';
+      wrapper.style.transformOrigin = 'center center';
+      updateZoomLevel(100);
 
       // Show overlay
       overlay.classList.add('active');
