@@ -170,12 +170,14 @@ graph TB
     CLI --> RuleEngine
     Routes --> ViewDetector
     
-    StaticScanner --> FileTracker
-    StaticScanner --> ErbExtractor
-    ErbExtractor --> StaticAdapter
-    StaticAdapter --> RuleEngine
-    StaticScanner --> LineFinder
-    LineFinder --> ErrorBuilder
+            StaticScanner --> FileTracker[FileChangeTracker]
+            StaticScanner --> ErbExtractor
+            ErbExtractor --> StaticAdapter[StaticPageAdapter]
+            StaticAdapter --> RuleEngine
+            StaticScanner --> LineFinder[LineNumberFinder]
+            StaticScanner --> ViolationConverter[ViolationConverter]
+            ViolationConverter --> LineFinder
+            ViolationConverter --> ErrorBuilder
     
     style Entry fill:#ff6b6b
     style RuleEngine fill:#4ecdc4
@@ -427,91 +429,353 @@ graph TB
 - **Subsequent Runs**: Only tests changed files
 - **Force Option**: `TEST_ALL_PAGES=true` environment variable
 
-### Static Scanning System (NEW in 1.5.3)
+### Static Scanning System (NEW in 1.5.3+)
 
-The static scanning system allows scanning view files directly without browser rendering, providing fast feedback during development.
+The static scanning system allows scanning view files directly without browser rendering, providing fast feedback during development. It's the recommended approach for continuous development testing via `bin/dev`.
+
+#### Architecture Overview
+
+The static scanner uses a modular, pipeline-based architecture:
+
+```
+ERB Template → ErbExtractor → HTML → StaticPageAdapter → RuleEngine → Checks → Violations → ViolationConverter → Errors/Warnings
+```
 
 #### Components
 
 1. **StaticFileScanner** - Main orchestrator
-   - Reads ERB template files
-   - Coordinates HTML extraction and scanning
-   - Returns errors with file locations and line numbers
+   - Reads ERB template files from `app/views/**/*.html.erb`
+   - Coordinates the entire scanning pipeline
+   - Loads configuration via `YamlLoader`
+   - Creates `RuleEngine` instance with config
+   - Returns structured hash: `{ errors: [...], warnings: [...] }`
 
 2. **FileChangeTracker** - Change detection for static files
-   - Tracks file modification times in `tmp/.rails_a11y_scanned_files.json`
-   - Detects which files have changed since last scan
-   - Supports atomic writes to prevent partial state
+   - **State File**: `tmp/.rails_a11y_scanned_files.json`
+   - **Purpose**: Tracks file modification times (mtime) to detect changes
+   - **Methods**:
+     - `load_state`: Reads JSON state file, returns hash of `{ file_path => mtime }`
+     - `changed_files(files)`: Compares current mtimes with stored state, returns changed/new files
+     - `update_state(files)`: Updates state file with current mtimes (atomic write)
+     - `clear_state`: Clears state file (forces full rescan)
+   - **Atomic Writes**: Uses temp file + `mv` to prevent partial writes
 
 3. **ErbExtractor** - ERB to HTML conversion
-   - Converts Rails helpers (`link_to`, `image_tag`, `select_tag`, etc.) to HTML placeholders
-   - Preserves attributes (id, name, src, alt, href) for analysis
-   - Removes ERB tags while preserving structure
+   - **Purpose**: Converts Rails helpers to HTML placeholders for static analysis
+   - **Supported Helpers**:
+     - Form: `select_tag`, `text_field_tag`, `password_field_tag`, `email_field_tag`, `text_area_tag`, `check_box_tag`, `radio_button_tag`, `label_tag`, `form_with`, `form_for`
+     - Images: `image_tag`
+     - Links: `link_to` (with/without blocks, with/without text)
+     - Buttons: `button_tag`, `f.submit`, `button`
+   - **Process**:
+     1. Convert Rails helpers to HTML (preserves attributes: id, name, src, alt, href)
+     2. Remove ERB tags (`<% ... %>`, `<%= ... %>`)
+     3. Clean up whitespace
+   - **Limitations**: Cannot execute Ruby code, only converts helpers to placeholders
 
 4. **StaticPageAdapter** - Capybara compatibility layer
-   - Makes Nokogiri documents look like Capybara pages
-   - Allows reuse of existing checks without modification
-   - Provides Capybara-like interface (`all`, `has_css?`, etc.)
+   - **Purpose**: Makes Nokogiri documents look like Capybara pages
+   - **Key Methods**:
+     - `all(selector, visible: true)`: Returns array of `StaticElementAdapter` instances
+     - `has_css?(selector, wait: true)`: Checks if selector exists
+     - `current_url`, `current_path`: Returns `nil` (not applicable)
+   - **StaticElementAdapter**: Wraps Nokogiri elements to look like Capybara elements
+     - `tag_name`, `[]`, `text`, `visible?`, `all(selector)`, `find(:xpath, '..')`
+   - **Benefit**: Allows reuse of existing checks without modification
 
 5. **LineNumberFinder** - Precise error location
-   - Maps HTML elements back to original ERB line numbers
-   - Uses element attributes (id, src, href) for matching
-   - Enables precise error reporting
+   - **Purpose**: Maps HTML elements back to original ERB line numbers
+   - **Matching Strategy** (in order of specificity):
+     1. Match by `id` attribute (most specific)
+     2. Match by `src` attribute (for images)
+     3. Match by `href` attribute (for links)
+     4. Match by `type` attribute (for inputs)
+     5. Match by tag name (fallback)
+   - **Returns**: 1-indexed line number or `nil` if not found
 
 6. **ViolationConverter** - Result formatting
-   - Converts raw violations to structured errors/warnings
-   - Adds line numbers and file paths
-   - Respects `ignore_warnings` configuration
+   - **Purpose**: Converts raw `Violation` objects to structured errors/warnings
+   - **Process**:
+     1. Iterates through violations from `RuleEngine`
+     2. Uses `LineNumberFinder` to find line numbers
+     3. Categorizes as error or warning (based on `warning?` method)
+     4. Filters warnings if `ignore_warnings: true` in config
+     5. Returns `{ errors: [...], warnings: [...] }`
+   - **Warning Detection**: 
+     - Skip links → warnings (best practice, not required)
+     - ARIA landmarks → warnings (best practice, not always required)
+     - Everything else → errors
 
-#### Static Scanning Flow
+#### Complete Static Scanner Flow
 
 ```mermaid
 graph TB
-    A[View File Changed] --> B[FileChangeTracker]
-    B --> C{File Modified?}
-    C -->|No| D[Skip Scan]
-    C -->|Yes| E[StaticFileScanner]
-    E --> F[ErbExtractor]
-    F --> G[Convert ERB to HTML]
-    G --> H[StaticPageAdapter]
-    H --> I[RuleEngine]
-    I --> J[11 Checks]
-    J --> K[ViolationConverter]
-    K --> L[LineNumberFinder]
-    L --> M[Errors with Line Numbers]
-    M --> N[Update FileChangeTracker State]
+    Start[a11y_static_scanner Startup] --> LoadConfig[Load accessibility.yml]
+    LoadConfig --> LoadState[FileChangeTracker.load_state]
+    LoadState --> GetFiles[Get all view files<br/>app/views/**/*.html.erb]
+    GetFiles --> Decision{scan_changed_only?}
     
-    style E fill:#feca57
-    style F fill:#ff9ff3
-    style H fill:#48dbfb
-    style L fill:#ff6b6b
+    Decision -->|false| ScanAll[Scan ALL files]
+    Decision -->|true| CheckStartup{full_scan_on_startup?}
+    
+    CheckStartup -->|true| ScanAll
+    CheckStartup -->|false| CheckChanged[FileChangeTracker.changed_files]
+    
+    CheckChanged --> ChangedEmpty{Changed files empty?}
+    ChangedEmpty -->|yes| WatchLoop[Enter watch loop<br/>sleep check_interval]
+    ChangedEmpty -->|no| ScanChanged[Scan changed files only]
+    
+    ScanAll --> ScanFile[For each file:<br/>StaticFileScanner.scan]
+    ScanChanged --> ScanFile
+    
+    ScanFile --> ReadFile[Read ERB file content]
+    ReadFile --> Extract[ErbExtractor.extract_html]
+    Extract --> Parse[Nokogiri.parse HTML]
+    Parse --> Adapter[StaticPageAdapter.new]
+    Adapter --> LoadConfig2[YamlLoader.load profile: :test]
+    LoadConfig2 --> Engine[RuleEngine.new config: config]
+    Engine --> RunChecks[Run all 11 enabled checks]
+    RunChecks --> Collect[Collect violations]
+    Collect --> Convert[ViolationConverter.convert]
+    Convert --> FindLines[LineNumberFinder.find_line_number]
+    FindLines --> Filter{ignore_warnings?}
+    Filter -->|true| RemoveWarnings[Remove warnings]
+    Filter -->|false| KeepAll[Keep errors + warnings]
+    RemoveWarnings --> Format[Format errors/warnings]
+    KeepAll --> Format
+    Format --> UpdateState[FileChangeTracker.update_state]
+    UpdateState --> Output[Display results]
+    
+    Output --> Continuous{scan_changed_only?}
+    Continuous -->|true| WatchLoop
+    Continuous -->|false| Exit[Exit]
+    
+    WatchLoop --> Sleep[sleep check_interval]
+    Sleep --> CheckAgain[FileChangeTracker.changed_files]
+    CheckAgain --> HasChanges{Has changes?}
+    HasChanges -->|yes| ScanChanged
+    HasChanges -->|no| Sleep
+    
+    style Start fill:#ff6b6b
+    style ScanFile fill:#4ecdc4
+    style Extract fill:#ff9ff3
+    style Adapter fill:#48dbfb
+    style Engine fill:#feca57
+    style FindLines fill:#ff6b6b
+    style Format fill:#ffeaa7
 ```
 
-#### Configuration
+#### File Selection Logic
 
-Static scanner behavior is controlled via `config/accessibility.yml`:
+The static scanner uses a sophisticated file selection algorithm based on configuration flags:
+
+```mermaid
+graph TB
+    Start[Scanner Startup] --> Config[Load Config]
+    Config --> Flags{Read Flags}
+    Flags --> ScanChanged[scan_changed_only]
+    Flags --> FullStartup[full_scan_on_startup]
+    
+    ScanChanged -->|false| AlwaysScan[Scan ALL files every time]
+    ScanChanged -->|true| CheckStartup{full_scan_on_startup?}
+    
+    CheckStartup -->|true| StartupScan[Scan ALL files on startup]
+    CheckStartup -->|false| ChangedOnly[Only scan changed files]
+    
+    StartupScan --> AfterStartup[After startup scan completes]
+    ChangedOnly --> CheckEmpty{Any changed files?}
+    
+    CheckEmpty -->|no| WatchMode[Enter watch mode<br/>Check every check_interval seconds]
+    CheckEmpty -->|yes| ScanChangedFiles[Scan changed files]
+    
+    AfterStartup --> WatchMode
+    ScanChangedFiles --> WatchMode
+    
+    WatchMode --> Sleep[sleep check_interval]
+    Sleep --> CheckChanges[FileChangeTracker.changed_files]
+    CheckChanges --> HasChanges{Has changes?}
+    HasChanges -->|yes| ScanChangedFiles
+    HasChanges -->|no| Sleep
+    
+    AlwaysScan --> Done[Exit after scan]
+    
+    style StartupScan fill:#55efc4
+    style ScanChangedFiles fill:#fdcb6e
+    style WatchMode fill:#a29bfe
+```
+
+#### Configuration Flags Reference
+
+All configuration is done via `config/accessibility.yml`:
+
+##### Static Scanner Configuration (`static_scanner`)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `scan_changed_only` | Boolean | `true` | Only scan files that have changed since last scan. When `false`, scans all files every time. |
+| `check_interval` | Integer | `3` | Seconds between file change checks when running continuously. Only used when `scan_changed_only: true`. |
+| `full_scan_on_startup` | Boolean | `true` | Force full scan of all files on startup. When `false`, only scans changed files from the start. |
+
+**Flag Interaction Matrix:**
+
+| `scan_changed_only` | `full_scan_on_startup` | Behavior |
+|---------------------|------------------------|---------|
+| `false` | `true`/`false` | Scan all files every time, exit after scan |
+| `true` | `true` | Scan all files on startup, then watch for changes |
+| `true` | `false` | Only scan changed files, watch for changes |
+
+##### Summary Configuration (`summary`)
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `show_summary` | Boolean | `true` | Show summary at end of test suite (RSpec only) |
+| `errors_only` | Boolean | `false` | Show only errors in summary, hide warnings (RSpec only) |
+| `show_fixes` | Boolean | `true` | Show fix suggestions in error messages |
+| `ignore_warnings` | Boolean | `false` | **Filter out warnings completely** - only show errors. Used by both static scanner and RSpec. |
+
+**Warning Filtering:**
+- `ignore_warnings: true` → Warnings are filtered out at `ViolationConverter` level
+- `errors_only: true` → Warnings are hidden in summary but still collected (RSpec only)
+
+##### Check Configuration (`checks`)
+
+| Check | Default | Description |
+|-------|---------|-------------|
+| `form_labels` | `true` | Form inputs have associated labels |
+| `image_alt_text` | `true` | Images have alt attributes |
+| `interactive_elements` | `true` | Interactive elements have accessible names |
+| `heading` | `true` | Proper heading hierarchy |
+| `keyboard_accessibility` | `true` | Elements are keyboard accessible |
+| `aria_landmarks` | `true` | Proper ARIA landmark roles |
+| `form_errors` | `true` | Form errors linked to fields |
+| `table_structure` | `true` | Tables have proper headers |
+| `duplicate_ids` | `true` | No duplicate IDs |
+| `skip_links` | `true` | Skip navigation links present |
+| `color_contrast` | `false` | Text meets contrast requirements (expensive) |
+
+##### Profile-Specific Configuration
+
+Configuration supports profiles (`development`, `test`, `ci`) with deep merging:
 
 ```yaml
-static_scanner:
-  # Only scan files that have changed since last scan
-  scan_changed_only: true
-  
-  # Check interval in seconds when running continuously
-  check_interval: 3
-  
-  # Force full scan on startup (true/false)
-  # When true: scans all files on first run, then only changed files
-  # When false: only scans changed files from the start
-  full_scan_on_startup: true
+# Base config
+wcag_level: AA
+checks:
+  color_contrast: false
+
+# Profile-specific (deep merged)
+development:
+  checks:
+    color_contrast: false  # Overrides base
+  static_scanner:
+    check_interval: 5  # Overrides base
+
+ci:
+  checks:
+    color_contrast: true  # Overrides base
 ```
+
+**Merging Rules:**
+- Base config + Profile config = Merged config
+- Checks are merged (profile overrides base)
+- Summary config is merged (profile overrides base)
+- Static scanner config is merged (profile overrides base)
+- `ignored_rules` are concatenated and deduplicated
+
+#### Data Flow: ERB to Error Report
+
+```mermaid
+sequenceDiagram
+    participant Scanner as StaticFileScanner
+    participant File as ERB File
+    participant Extractor as ErbExtractor
+    participant Nokogiri as Nokogiri Parser
+    participant Adapter as StaticPageAdapter
+    participant Config as YamlLoader
+    participant Engine as RuleEngine
+    participant Check as Check (e.g., FormLabelsCheck)
+    participant Collector as ViolationCollector
+    participant Converter as ViolationConverter
+    participant Finder as LineNumberFinder
+    participant Output as CLI Output
+    
+    Scanner->>File: Read file content
+    File-->>Scanner: ERB template string
+    
+    Scanner->>Extractor: extract_html(content)
+    Extractor->>Extractor: Convert Rails helpers to HTML
+    Extractor->>Extractor: Remove ERB tags
+    Extractor-->>Scanner: HTML string
+    
+    Scanner->>Nokogiri: Parse HTML
+    Nokogiri-->>Scanner: Nokogiri::Document
+    
+    Scanner->>Adapter: new(html, view_file: path)
+    Adapter-->>Scanner: StaticPageAdapter instance
+    
+    Scanner->>Config: load(profile: :test)
+    Config-->>Scanner: Config hash with checks, summary, static_scanner
+    
+    Scanner->>Engine: new(config: config)
+    Engine-->>Scanner: RuleEngine instance
+    
+    Scanner->>Engine: check(static_page, context: { view_file })
+    
+    loop For each enabled check
+        Engine->>Check: new(page: static_page, context: context)
+        Check->>Adapter: all('input[type="text"]')
+        Adapter-->>Check: Array of StaticElementAdapter
+        Check->>Check: Validate WCAG rules
+        Check-->>Engine: Array of Violations
+        Engine->>Collector: add(violations)
+    end
+    
+    Engine-->>Scanner: Array of Violation objects
+    
+    Scanner->>Finder: new(file_content)
+    Finder-->>Scanner: LineNumberFinder instance
+    
+    Scanner->>Converter: convert(violations, view_file, finder, config)
+    
+    loop For each violation
+        Converter->>Finder: find_line_number(element_context)
+        Finder-->>Converter: Line number (1-indexed)
+        Converter->>Converter: Categorize as error/warning
+        Converter->>Converter: Filter warnings if ignore_warnings: true
+    end
+    
+    Converter-->>Scanner: { errors: [...], warnings: [...] }
+    
+    Scanner->>Output: Display formatted errors
+    Output->>Output: Show file path, line number, error type
+```
+
+#### Integration Points
+
+1. **RuleEngine Integration**
+   - Static scanner uses the same `RuleEngine` as system specs
+   - All 11 checks work identically for both static and dynamic scanning
+   - Configuration (`checks`, `ignored_rules`) applies to both
+
+2. **Configuration Integration**
+   - `YamlLoader` loads config with profile support
+   - Static scanner uses `profile: :test` (can be changed)
+   - Summary config (`ignore_warnings`) applies to both static scanner and RSpec
+
+3. **File Change Tracking**
+   - State file: `tmp/.rails_a11y_scanned_files.json`
+   - Format: `{ "app/views/pages/home.html.erb": 1234567890.123 }`
+   - Atomic writes prevent corruption
+   - Automatically cleaned up (removes deleted files)
 
 #### Benefits
 
-- **Fast**: No browser needed - scans ERB templates directly
+- **Fast**: No browser needed - scans ERB templates directly (~10-100x faster than browser-based)
 - **Precise**: Reports exact file locations and line numbers
 - **Efficient**: Only scans changed files using modification time tracking
 - **Continuous**: Runs continuously, watching for file changes
 - **Reusable**: Leverages existing RuleEngine and all 11 checks
+- **Configurable**: Full control via YAML with profile support
 
 #### Performance Optimization Flow
 
@@ -776,7 +1040,7 @@ ci:
 
 ---
 
-## Version 1.5.0 Highlights
+## Version 1.5.3+ Highlights
 
 ### New Components
 
@@ -785,13 +1049,13 @@ ci:
 3. **Enhanced ChangeDetector**: Asset change detection and smart partial impact analysis
 4. **Improved View File Detection**: Fuzzy matching and controller directory scanning
 5. **Rails Server Safe Wrapper**: Prevents Foreman from terminating processes
-6. **Static Scanning System**: File-based scanning without browser (NEW in 1.5.0+)
-   - **StaticFileScanner**: Main orchestrator for static file scanning
-   - **FileChangeTracker**: Tracks file modification times for change detection
-   - **ErbExtractor**: Converts ERB templates to HTML for analysis
+6. **Static Scanning System**: File-based scanning without browser (NEW in 1.5.3+)
+   - **StaticFileScanner**: Main orchestrator for static file scanning pipeline
+   - **FileChangeTracker**: Tracks file modification times in `tmp/.rails_a11y_scanned_files.json`
+   - **ErbExtractor**: Converts ERB templates to HTML (15+ Rails helpers supported)
    - **StaticPageAdapter**: Makes Nokogiri documents compatible with existing checks
-   - **LineNumberFinder**: Maps HTML elements to ERB line numbers
-   - **ViolationConverter**: Formats violations with precise file locations
+   - **LineNumberFinder**: Maps HTML elements to ERB line numbers (1-indexed)
+   - **ViolationConverter**: Formats violations with precise file locations, respects `ignore_warnings`
 
 ### Enhanced Components
 
@@ -807,9 +1071,10 @@ ci:
 2. **Smart Change Detection**: Only tests affected pages
 3. **First-Run Optimization**: Faster initial setup
 4. **Reduced Wait Times**: Faster Capybara operations
-5. **Static File Scanning**: Fast file-based scanning without browser overhead (NEW in 1.5.0+)
-6. **File Change Tracking**: Only scans modified files using modification time tracking
-7. **Continuous Monitoring**: Watches for file changes and re-scans automatically
+5. **Static File Scanning**: Fast file-based scanning without browser overhead (~10-100x faster)
+6. **File Change Tracking**: Only scans modified files using modification time tracking (`FileChangeTracker`)
+7. **Continuous Monitoring**: Watches for file changes and re-scans automatically (configurable via `check_interval`)
+8. **Configuration Flags**: Comprehensive YAML configuration with profile support (`scan_changed_only`, `full_scan_on_startup`, `ignore_warnings`, etc.)
 
 ---
 
@@ -837,5 +1102,5 @@ ci:
 
 ---
 
-**Architecture Version**: 1.5.0  
-**Last Updated**: 2025-11-19
+**Architecture Version**: 1.5.5  
+**Last Updated**: 2025-11-20
