@@ -541,15 +541,60 @@
       closeBtn.focus();
     }
 
+    // Zoom functionality
+    let currentZoom = 100;
+    const minZoom = 25;
+    const maxZoom = 500;
+    const zoomStep = 25;
+
+    function zoomIn() {
+      if (currentZoom < maxZoom) {
+        currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+        applyZoom();
+      }
+    }
+
+    function zoomOut() {
+      if (currentZoom > minZoom) {
+        currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+        applyZoom();
+      }
+    }
+
+    function resetZoom() {
+      currentZoom = 100;
+      applyZoom();
+    }
+
+    function applyZoom() {
+      const wrapper = document.getElementById('diagram-zoom-wrapper');
+      if (wrapper) {
+        wrapper.style.transform = `scale(${currentZoom / 100})`;
+        updateZoomLevel(currentZoom);
+      }
+    }
+
+    function updateZoomLevel(level) {
+      const zoomLevelEl = document.getElementById('zoom-level-display');
+      if (zoomLevelEl) {
+        zoomLevelEl.textContent = `${level}%`;
+      }
+    }
+
     // Function to close fullscreen
     function closeFullscreen() {
       const overlay = document.getElementById('diagram-fullscreen-overlay');
       overlay.classList.remove('active');
       document.body.style.overflow = '';
+      // Reset zoom for next time
+      currentZoom = 100;
     }
 
-    // Make closeFullscreen global for button onclick
+    // Make functions global for button onclick
     window.closeFullscreen = closeFullscreen;
+    window.zoomIn = zoomIn;
+    window.zoomOut = zoomOut;
+    window.resetZoom = resetZoom;
 
     // Function to wrap diagrams in containers with fullscreen buttons
     function wrapDiagramsWithButtons() {
