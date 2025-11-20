@@ -74,7 +74,7 @@ jobs:
           fi
           
           # Count Mermaid diagram blocks
-          MERMAID_COUNT=$(grep -c "```mermaid" architecture.md 2>/dev/null || echo "0")
+          MERMAID_COUNT=$(grep -c '```mermaid' architecture.md 2>/dev/null || echo "0")
           echo "📊 Found $MERMAID_COUNT Mermaid diagram blocks in architecture.md"
           
           # Verify key pages were built
