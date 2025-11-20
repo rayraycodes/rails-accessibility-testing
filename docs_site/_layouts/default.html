@@ -243,15 +243,31 @@
       background: white;
       border-radius: 8px;
       padding: 2rem;
-      max-width: 95vw;
-      max-height: 95vh;
+      width: 98vw;
+      height: 98vh;
       overflow: auto;
       position: relative;
       animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .diagram-fullscreen-content .mermaid {
       margin: 0;
+      min-width: 100%;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .diagram-fullscreen-content .mermaid svg {
+      max-width: none !important;
+      max-height: none !important;
+      width: auto !important;
+      height: auto !important;
+      transform-origin: center;
     }
 
     /* Close button */
@@ -279,6 +295,60 @@
     .close-fullscreen-btn:focus {
       outline: 2px solid white;
       outline-offset: 2px;
+    }
+
+    /* Zoom controls */
+    .zoom-controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 10000;
+    }
+
+    .zoom-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background 0.3s, transform 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .zoom-btn:hover {
+      background: #2980b9;
+      transform: scale(1.05);
+    }
+
+    .zoom-btn:focus {
+      outline: 2px solid white;
+      outline-offset: 2px;
+    }
+
+    .zoom-btn:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .zoom-level {
+      background: rgba(255, 255, 255, 0.9);
+      color: #2c3e50;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      min-width: 80px;
+      justify-content: center;
     }
 
     /* Animations */
@@ -357,6 +427,38 @@
       overlay.setAttribute('aria-modal', 'true');
       overlay.setAttribute('aria-label', 'Fullscreen diagram viewer');
 
+      // Zoom controls
+      const zoomControls = document.createElement('div');
+      zoomControls.className = 'zoom-controls';
+      
+      const zoomOutBtn = document.createElement('button');
+      zoomOutBtn.className = 'zoom-btn';
+      zoomOutBtn.textContent = '−';
+      zoomOutBtn.setAttribute('aria-label', 'Zoom out');
+      zoomOutBtn.onclick = zoomOut;
+      
+      const zoomLevel = document.createElement('div');
+      zoomLevel.className = 'zoom-level';
+      zoomLevel.id = 'zoom-level-display';
+      zoomLevel.textContent = '100%';
+      
+      const zoomInBtn = document.createElement('button');
+      zoomInBtn.className = 'zoom-btn';
+      zoomInBtn.textContent = '+';
+      zoomInBtn.setAttribute('aria-label', 'Zoom in');
+      zoomInBtn.onclick = zoomIn;
+      
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'zoom-btn';
+      resetBtn.textContent = 'Reset';
+      resetBtn.setAttribute('aria-label', 'Reset zoom to 100%');
+      resetBtn.onclick = resetZoom;
+      
+      zoomControls.appendChild(zoomOutBtn);
+      zoomControls.appendChild(zoomLevel);
+      zoomControls.appendChild(zoomInBtn);
+      zoomControls.appendChild(resetBtn);
+
       const closeBtn = document.createElement('button');
       closeBtn.className = 'close-fullscreen-btn';
       closeBtn.textContent = '✕ Close';
@@ -366,6 +468,7 @@
       const content = document.createElement('div');
       content.className = 'diagram-fullscreen-content';
 
+      overlay.appendChild(zoomControls);
       overlay.appendChild(closeBtn);
       overlay.appendChild(content);
       document.body.appendChild(overlay);
@@ -381,6 +484,22 @@
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && overlay.classList.contains('active')) {
           closeFullscreen();
+        }
+      });
+
+      // Keyboard shortcuts for zoom
+      document.addEventListener('keydown', (e) => {
+        if (overlay.classList.contains('active')) {
+          if (e.key === '+' || e.key === '=') {
+            e.preventDefault();
+            zoomIn();
+          } else if (e.key === '-') {
+            e.preventDefault();
+            zoomOut();
+          } else if (e.key === '0') {
+            e.preventDefault();
+            resetZoom();
+          }
         }
       });
     }
