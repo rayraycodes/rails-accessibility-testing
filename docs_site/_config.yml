@@ -23,6 +23,8 @@ navigation:
     url: /
   - title: Getting Started
     url: /getting_started.html
+  - title: Architecture
+    url: /architecture.html
   - title: Configuration
     url: /configuration.html
   - title: CI Integration
