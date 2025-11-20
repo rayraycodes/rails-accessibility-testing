@@ -143,12 +143,22 @@ module RailsAccessibilityTesting
         # Show overall summary after all tests complete
         config.after(:suite) do
           # Check if summary should be shown
-          config_data = load_summary_config
-          return unless config_data['show_summary']
-          
-          # Show summary if we tested any pages
-          if @@accessibility_results && @@accessibility_results[:pages_tested].any?
-            show_overall_summary(@@accessibility_results, config_data)
+          begin
+            require 'rails_accessibility_testing/config/yaml_loader'
+            profile = defined?(Rails) && Rails.env.test? ? :test : :development
+            config_data = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+            summary_config = config_data['summary'] || {}
+            show_summary = summary_config.fetch('show_summary', true)
+            errors_only = summary_config.fetch('errors_only', false)
+            
+            return unless show_summary
+            
+            # Show summary if we tested any pages
+            if @@accessibility_results && @@accessibility_results[:pages_tested].any?
+              show_overall_summary(@@accessibility_results, errors_only: errors_only)
+            end
+          rescue StandardError => e
+            # Silently fail if config can't be loaded
           end
         end
       end
