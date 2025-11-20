@@ -169,28 +169,6 @@
       font-weight: 600;
     }
   </style>
-  <!-- Mermaid.js for diagram rendering -->
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({ 
-      startOnLoad: true, 
-      theme: 'default',
-      securityLevel: 'loose',
-      flowchart: { useMaxWidth: true },
-      sequence: { useMaxWidth: true },
-      gantt: { useMaxWidth: true }
-    });
-    
-    // Ensure Mermaid processes all code blocks with language-mermaid class
-    document.addEventListener('DOMContentLoaded', function() {
-      // Find all code blocks with mermaid language
-      const mermaidBlocks = document.querySelectorAll('code.language-mermaid, pre code.language-mermaid');
-      if (mermaidBlocks.length > 0) {
-        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks');
-        // Mermaid will process them automatically with startOnLoad: true
-      }
-    });
-  </script>
 </head>
 
 <body>
@@ -204,6 +182,39 @@
     <p>&copy; {{ 'now' | date: "%Y" }} Rails Accessibility Testing. MIT License.</p>
     <p><a href="https://github.com/rayraycodes/rails-accessibility-testing" style="color: white;">GitHub</a></p>
   </footer>
+  
+  <!-- Mermaid.js for diagram rendering - Load at end of body for better reliability -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    
+    // Initialize Mermaid
+    mermaid.initialize({ 
+      startOnLoad: true, 
+      theme: 'default',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true },
+      sequence: { useMaxWidth: true },
+      gantt: { useMaxWidth: true }
+    });
+    
+    // Ensure Mermaid processes all code blocks after DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        // Mermaid will process automatically with startOnLoad: true
+        // But we can also manually trigger if needed
+        const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
+        if (mermaidBlocks.length > 0) {
+          console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks to render');
+        }
+      });
+    } else {
+      // DOM already loaded
+      const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
+      if (mermaidBlocks.length > 0) {
+        console.log('Found', mermaidBlocks.length, 'Mermaid diagram blocks to render');
+      }
+    }
+  </script>
 </body>
 
 </html>
