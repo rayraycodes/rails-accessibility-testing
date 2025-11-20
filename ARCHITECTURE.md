@@ -74,6 +74,94 @@ rails_accessibility_testing/
     └── Doc Site             # Static documentation site
 ```
 
+#### Visual Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Rails Application"
+        App[Your Rails App]
+        Tests[System Tests/Specs]
+        Views[Views & Partials]
+        Routes[Routes & Controllers]
+    end
+    
+    subgraph "Rails Accessibility Testing Gem"
+        Entry[Gem Entry Point]
+        Railtie[Rails Integration Layer]
+        
+        subgraph "Test Integration"
+            RSpec[RSpec Integration]
+            Minitest[Minitest Integration]
+            AutoHook[Automatic Test Hooks]
+        end
+        
+        subgraph "Core Engine"
+            RuleEngine[Rule Engine]
+            Checks[11+ Accessibility Checks]
+            Collector[Violation Collector]
+        end
+        
+        subgraph "Intelligence Layer"
+            ViewDetector[View File Detector]
+            PartialDetector[Partial Detection]
+            ChangeDetector[Change Detector]
+            Cache[Page Scanning Cache]
+        end
+        
+        subgraph "Configuration"
+            YAMLConfig[YAML Config Loader]
+            Profiles[Profile Manager]
+            RubyConfig[Ruby Configuration]
+        end
+        
+        subgraph "Output & Reporting"
+            ErrorBuilder[Error Message Builder]
+            CLI[CLI Tool]
+            Reports[Reports & Logs]
+        end
+    end
+    
+    subgraph "Testing Tools"
+        Capybara[Capybara]
+        Selenium[Selenium WebDriver]
+        AxeCore[axe-core Engine]
+    end
+    
+    Tests --> RSpec
+    Tests --> Minitest
+    RSpec --> AutoHook
+    Minitest --> AutoHook
+    App --> Railtie
+    Entry --> Railtie
+    
+    AutoHook --> Cache
+    Cache --> ViewDetector
+    ViewDetector --> ChangeDetector
+    ChangeDetector --> RuleEngine
+    RuleEngine --> YAMLConfig
+    YAMLConfig --> Profiles
+    RuleEngine --> Checks
+    Checks --> Capybara
+    Capybara --> Selenium
+    Checks --> AxeCore
+    Checks --> ViewDetector
+    ViewDetector --> PartialDetector
+    PartialDetector --> Views
+    Checks --> Collector
+    Collector --> ErrorBuilder
+    ErrorBuilder --> Reports
+    
+    CLI --> RuleEngine
+    Routes --> ViewDetector
+    
+    style Entry fill:#ff6b6b
+    style RuleEngine fill:#4ecdc4
+    style Checks fill:#45b7d1
+    style ViewDetector fill:#96ceb4
+    style ErrorBuilder fill:#ffeaa7
+    style Cache fill:#a29bfe
+```
+
 ### Data Flow
 
 ```
@@ -99,6 +187,80 @@ Error Message Builder (with file paths)
 Test Failure / CLI Report
 ```
 
+#### Request Flow Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Test as Test Suite
+    participant Hook as Auto Hooks
+    participant Cache as Scan Cache
+    participant Detector as View Detector
+    participant Change as Change Detector
+    participant Engine as Rule Engine
+    participant Checks as 11 Check Modules
+    participant Capybara as Capybara/Browser
+    participant Collector as Violation Collector
+    participant Builder as Error Builder
+    participant Report as Test Report
+    
+    Dev->>Test: Run test suite
+    Test->>Hook: Execute system test
+    Hook->>Test: visit('/some/path')
+    Test->>Capybara: Load page
+    Capybara->>Test: Page loaded
+    
+    rect rgb(200, 220, 250)
+        Note over Hook,Cache: Performance Optimization
+        Hook->>Cache: Check if page scanned
+        alt Page already scanned
+            Cache->>Hook: Skip (cached)
+        else Not in cache
+            Cache->>Detector: Continue with scan
+        end
+    end
+    
+    rect rgb(220, 250, 220)
+        Note over Detector,Change: Smart Detection
+        Detector->>Change: Check for file changes
+        Change->>Change: Analyze views/partials/assets
+        alt No changes detected
+            Change->>Hook: Skip scan (no changes)
+        else Changes detected
+            Change->>Engine: Proceed with checks
+        end
+    end
+    
+    rect rgb(250, 220, 220)
+        Note over Engine,Checks: Accessibility Checks
+        Engine->>Checks: Run enabled checks
+        loop For each check (11 total)
+            Checks->>Capybara: Query DOM elements
+            Capybara->>Checks: Return elements
+            Checks->>Checks: Validate WCAG rules
+            Checks->>Collector: Report violations
+        end
+    end
+    
+    rect rgb(250, 240, 200)
+        Note over Collector,Report: Error Reporting
+        Collector->>Detector: Map violations to files
+        Detector->>Detector: Find view files
+        Detector->>Detector: Detect partials
+        Detector->>Builder: Pass file locations
+        Builder->>Builder: Format error messages
+        Builder->>Report: Generate detailed report
+    end
+    
+    alt Violations found
+        Report->>Test: Fail with detailed errors
+        Test->>Dev: Show actionable errors
+    else No violations
+        Report->>Test: Pass
+        Test->>Dev: ✓ Accessibility checks passed
+    end
+```
+
 ### Rule Engine Design
 
 The rule engine is the heart of the gem. It:
@@ -108,6 +270,43 @@ The rule engine is the heart of the gem. It:
 3. **Executes Checks**: Runs enabled checks in order
 4. **Collects Violations**: Aggregates all violations before reporting
 5. **Formats Output**: Creates actionable error messages with precise file locations
+
+#### Rule Engine Flow Diagram
+
+```mermaid
+graph TB
+    A[Rule Engine] --> B[Load Configuration]
+    B --> C[Apply Profiles]
+    C --> D[Filter Enabled Checks]
+    D --> E[Execute Checks in Order]
+    
+    E --> F1[Form Labels]
+    E --> F2[Image Alt Text]
+    E --> F3[Interactive Elements]
+    E --> F4[Heading Hierarchy]
+    E --> F5[Keyboard Access]
+    E --> F6[ARIA Landmarks]
+    E --> F7[Form Errors]
+    E --> F8[Table Structure]
+    E --> F9[Duplicate IDs]
+    E --> F10[Skip Links]
+    E --> F11[Color Contrast]
+    
+    F1 --> G[Collect Violations]
+    F2 --> G
+    F3 --> G
+    F4 --> G
+    F5 --> G
+    F6 --> G
+    F7 --> G
+    F8 --> G
+    F9 --> G
+    F10 --> G
+    F11 --> G
+    
+    style A fill:#4ecdc4
+    style G fill:#ffeaa7
+```
 
 ### Check Definition Structure
 
@@ -157,6 +356,24 @@ module AccessibilityHelper
 end
 ```
 
+#### View Detection Flow Diagram
+
+```mermaid
+graph TB
+    subgraph "View Detection System"
+        A[Page URL] --> B[Route Recognition]
+        B --> C{Exact Match?}
+        C -->|Yes| D[Found View File]
+        C -->|No| E[Fuzzy Matching]
+        E --> F[Scan Controller Dir]
+        F --> D
+        D --> G[Scan for Partials]
+        G --> H[Map Elements to Partials]
+    end
+    
+    style B fill:#96ceb4
+```
+
 ### Performance System (NEW in 1.5.0)
 
 #### Page Scanning Cache
@@ -184,6 +401,35 @@ end
 - **Initial Run**: Tests all pages to establish baseline
 - **Subsequent Runs**: Only tests changed files
 - **Force Option**: `TEST_ALL_PAGES=true` environment variable
+
+#### Performance Optimization Flow
+
+```mermaid
+graph TB
+    A[Page Visit] --> B{In Page Cache?}
+    B -->|Yes| C[Skip Scan]
+    B -->|No| D{First Run?}
+    D -->|Yes| E[Scan All Pages]
+    D -->|No| F{Files Changed?}
+    F -->|No| G[Skip Scan]
+    F -->|Yes| H[Smart Scan]
+    
+    H --> I{Which Files?}
+    I -->|View| J[Scan This Page]
+    I -->|Partial| K[Scan Pages Using Partial]
+    I -->|Helper| L[Scan All Pages]
+    I -->|Asset| M[Scan All Pages]
+    
+    E --> N[Add to Cache]
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+    
+    style B fill:#a29bfe
+    style F fill:#fdcb6e
+    style N fill:#55efc4
+```
 
 ---
 
