@@ -6,7 +6,7 @@
 PIDFILE="${PIDFILE:-tmp/pids/server.pid}"
 PORT="${PORT:-3000}"
 
-# Check if PID file exists
+# Check if PID file exists and process is running
 if [ -f "$PIDFILE" ]; then
   PID=$(cat "$PIDFILE" 2>/dev/null)
   
@@ -17,9 +17,7 @@ if [ -f "$PIDFILE" ]; then
       echo "Server is already running (pid: $PID, port: $PORT)"
       echo "Keeping process alive for Foreman..."
       # Keep the process alive by waiting indefinitely
-      # This prevents Foreman from shutting down all processes
       while true; do
-        # Check if the server process is still running
         if ! kill -0 "$PID" 2>/dev/null; then
           echo "Server process ended. Exiting."
           exit 0
@@ -54,5 +52,5 @@ if lsof -ti:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
 fi
 
 # Start the server normally
+# Use exec to replace this process with rails server
 exec bin/rails server "$@"
-
