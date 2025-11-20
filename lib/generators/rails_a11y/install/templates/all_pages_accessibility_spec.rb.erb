@@ -43,8 +43,8 @@ RSpec.describe 'All Pages Accessibility', type: :system do
     view_files.sort
   end
   
-  # Helper method to find route for a view file
-  def self.find_route_for_view_file(view_file)
+  # Helper method to generate path directly from view file (faster than route iteration)
+  def self.generate_path_from_view_file(view_file)
     return nil unless defined?(Rails) && Rails.application
     
     # Extract controller and action from view file path
@@ -57,32 +57,66 @@ RSpec.describe 'All Pages Accessibility', type: :system do
     controller = parts[0..-2].join('/')
     action = File.basename(parts.last)
     
-    # Try to find a route that matches this controller and action
-    Rails.application.routes.routes.each do |route|
-      next unless route.verb.to_s.include?('GET')
+    # Use Rails URL helpers to generate path directly from controller/action
+    # This is faster than iterating through all routes
+    begin
+      # Try to generate URL using Rails URL helpers
+      # This uses Rails' optimized route generation
+      url_helper_name = "#{controller.gsub('/', '_')}_#{action}_path"
       
-      begin
-        route_params = route.defaults
-        route_controller = route_params[:controller]
-        route_action = route_params[:action]
-        
-        # Match controller and action
-        if route_controller == controller && route_action == action
-          path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
-          return { route: route, path: path, controller: controller, action: action } if path
-        end
-        
-        # Also try fuzzy matching - if action doesn't match exactly, try to find similar
-        if route_controller == controller
-          # Check if view file name contains action or vice versa
-          if action.include?(route_action) || route_action.include?(action)
-            path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
-            return { route: route, path: path, controller: controller, action: action } if path
-          end
-        end
-      rescue StandardError
-        next
+      # Handle namespaced controllers (e.g., admin/users -> admin_users)
+      url_helper_name = url_helper_name.gsub(/[^a-z0-9_]/, '_')
+      
+      # Try to use the URL helper if it exists
+      if Rails.application.routes.url_helpers.respond_to?(url_helper_name)
+        path = Rails.application.routes.url_helpers.send(url_helper_name)
+        return { path: path, controller: controller, action: action, view_file: view_file }
       end
+      
+      # Fallback: Try with index if action might be index
+      if action != 'index'
+        index_helper_name = "#{controller.gsub('/', '_')}_index_path"
+        index_helper_name = index_helper_name.gsub(/[^a-z0-9_]/, '_')
+        if Rails.application.routes.url_helpers.respond_to?(index_helper_name)
+          # For non-index actions, we might need to construct differently
+          # Try the action path first
+        end
+      end
+      
+      # Alternative: Use url_for directly (most reliable)
+      begin
+        # Create a mock controller context to use url_for
+        path = Rails.application.routes.url_for(
+          controller: controller,
+          action: action,
+          only_path: true
+        )
+        return { path: path, controller: controller, action: action, view_file: view_file }
+      rescue StandardError => e
+        # url_for failed, try route matching as fallback
+      end
+      
+      # Last resort: Find route by matching controller/action
+      # This is slower but more reliable for edge cases
+      Rails.application.routes.routes.each do |route|
+        next unless route.verb.to_s.include?('GET')
+        
+        begin
+          route_params = route.defaults
+          route_controller = route_params[:controller]
+          route_action = route_params[:action]
+          
+          # Match controller and action
+          if route_controller == controller && route_action == action
+            path = RailsAccessibilityTesting::ChangeDetector.route_to_path(route)
+            return { path: path, controller: controller, action: action, view_file: view_file } if path
+          end
+        rescue StandardError
+          next
+        end
+      end
+    rescue StandardError => e
+      # If all methods fail, return nil
     end
     
     nil
@@ -124,11 +158,12 @@ RSpec.describe 'All Pages Accessibility', type: :system do
   strategy = config['scan_strategy'] || 'paths'
   
   if strategy == 'view_files'
-    # View-file-based scanning strategy
+    # View-file-based scanning strategy - scan files directly (faster!)
     view_files = get_all_view_files
     
     view_files.each do |view_file|
-      route_info = find_route_for_view_file(view_file)
+      # Generate path directly from view file (faster than route iteration)
+      route_info = generate_path_from_view_file(view_file)
       next unless route_info && route_info[:path]
       
       path = route_info[:path]
