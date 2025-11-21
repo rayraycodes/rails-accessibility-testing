@@ -11,62 +11,82 @@ You can customize how the gem works by creating a `config/accessibility.yml` fil
 
 ## Quick Start Configuration
 
-Here is a recommended configuration file that works for most Rails apps:
+Here is the configuration file structure that gets generated when you run the installer:
 
 ```yaml
 # config/accessibility.yml
 
-# Compliance Goal (A, AA, or AAA)
+# WCAG compliance level (A, AA, AAA)
 wcag_level: AA
 
-# Enable/Disable specific checks
+# Summary configuration
+# Control how accessibility test summaries are displayed
+summary:
+  # Show summary at end of test suite (true/false)
+  show_summary: true
+  
+  # Show only errors in summary, hide warnings (true/false)
+  errors_only: false
+  
+  # Show fix suggestions in error messages (true/false)
+  show_fixes: true
+  
+  # Ignore warnings completely - only show errors (true/false)
+  ignore_warnings: false
+
+# Scanning strategy
+# 'paths' - Scan by visiting routes/paths (default)
+# 'view_files' - Scan by finding view files and visiting their routes
+scan_strategy: 'view_files'
+
+# Static scanner configuration
+# Controls behavior of the static file scanner (a11y_static_scanner)
+static_scanner:
+  # Only scan files that have changed since last scan (true/false)
+  scan_changed_only: true
+  
+  # Check interval in seconds when running continuously
+  check_interval: 3
+  
+  # Force full scan on startup (true/false)
+  full_scan_on_startup: true
+
+# Global check configuration
+# Set to false to disable a check globally
 checks:
   form_labels: true
   image_alt_text: true
   interactive_elements: true
-  heading: true
+  heading_hierarchy: true
   keyboard_accessibility: true
   aria_landmarks: true
   form_errors: true
   table_structure: true
   duplicate_ids: true
   skip_links: true
-  color_contrast: false  # Disabled by default (slow)
-
-# Static Scanner (for bin/dev)
-static_scanner:
-  scan_changed_only: true
-  check_interval: 3
-  full_scan_on_startup: true
-
-# Reporting
-summary:
-  show_summary: true
-  show_fixes: true
-  ignore_warnings: false
+  color_contrast: false  # Disabled by default (requires JS evaluation)
 ```
 
 ---
 
 ## Profiles (Environments)
 
-You often want different rules for Development vs. CI. You can define profiles in the same file:
+You can define different configurations for different environments:
 
 ```yaml
 # ... base config above ...
 
 development:
   checks:
-    color_contrast: false  # Fast scans in dev
-  static_scanner:
-    scan_changed_only: true
+    color_contrast: false  # Skip in dev for speed
+
+test:
+  checks:
+    # Test environment uses global settings by default
 
 ci:
   checks:
-    color_contrast: true   # Full check in CI
-    skip_links: true       # Strict requirements
-  summary:
-    ignore_warnings: true  # Only fail on errors
+    color_contrast: true   # Full checks in CI
 ```
 
 To run a specific profile:
@@ -78,15 +98,16 @@ RAILS_A11Y_PROFILE=ci bundle exec rspec
 
 ## Ignoring Specific Rules
 
-Sometimes you have legacy code that you can't fix right away. You can ignore specific rules with a reason:
+Temporarily ignore specific rules while fixing issues:
 
 ```yaml
 ignored_rules:
   - rule: form_labels
-    reason: "Legacy login form, scheduled for redesign"
-  - rule: contrast
-    reason: "Brand colors need update from design team"
+    reason: "Legacy form, scheduled for refactor in Q2"
+    comment: "Will be fixed in PR #123"
 ```
+
+**Important:** Always include a reason and plan to fix. This is for temporary exceptions, not permanent workarounds.
 
 ---
 
