@@ -21,8 +21,8 @@
         stroke-linejoin="round" 
         fill="none"/>
   
-  <!-- Checkmark overlay (representing testing/validation) -->
-  <path d="M 25 75 L 32 82 L 45 65" 
+  <!-- Checkmark overlay centered (representing testing/validation) -->
+  <path d="M 35 50 L 45 60 L 65 40" 
         stroke="url(#checkGrad)" 
         stroke-width="5" 
         stroke-linecap="round" 
