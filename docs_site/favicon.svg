@@ -13,20 +13,18 @@
   <!-- Background circle with Rails red -->
   <circle cx="50" cy="50" r="48" fill="url(#bgGrad)" stroke="#fff" stroke-width="2"/>
   
-  <!-- Universal Access Symbol (Accessibility Icon) -->
-  <!-- Circle -->
-  <circle cx="50" cy="35" r="12" fill="none" stroke="#fff" stroke-width="3"/>
-  
-  <!-- Person (simplified) -->
-  <path d="M 50 47 L 50 60 M 50 52 L 42 58 M 50 52 L 58 58" 
+  <!-- Letter "A" for Accessibility -->
+  <path d="M 50 20 L 35 75 M 50 20 L 65 75 M 40 55 L 60 55" 
         stroke="#fff" 
-        stroke-width="3" 
-        stroke-linecap="round"/>
+        stroke-width="6" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
   
   <!-- Checkmark overlay (representing testing/validation) -->
-  <path d="M 30 70 L 40 80 L 70 50" 
+  <path d="M 25 75 L 32 82 L 45 65" 
         stroke="url(#checkGrad)" 
-        stroke-width="6" 
+        stroke-width="5" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
         fill="none"/>
