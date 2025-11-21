@@ -5,122 +5,100 @@ title: Configuration
 
 # Configuration
 
-Rails Accessibility Testing works out of the box with zero configuration, but you can customize it to fit your needs.
+You can customize how the gem works by creating a `config/accessibility.yml` file.
 
-## YAML Configuration
+---
 
-Create `config/accessibility.yml` in your Rails app:
+## Quick Start Configuration
+
+Here is a recommended configuration file that works for most Rails apps:
 
 ```yaml
-# WCAG compliance level (A, AA, AAA)
+# config/accessibility.yml
+
+# Compliance Goal (A, AA, or AAA)
 wcag_level: AA
 
-# Global check configuration
+# Enable/Disable specific checks
 checks:
   form_labels: true
   image_alt_text: true
   interactive_elements: true
-  heading: true  # Note: renamed from heading_hierarchy in 1.5.0
+  heading: true
   keyboard_accessibility: true
   aria_landmarks: true
   form_errors: true
   table_structure: true
   duplicate_ids: true
   skip_links: true
-  color_contrast: false  # Disabled by default (expensive)
+  color_contrast: false  # Disabled by default (slow)
 
-# Summary configuration
+# Static Scanner (for bin/dev)
+static_scanner:
+  scan_changed_only: true
+  check_interval: 3
+  full_scan_on_startup: true
+
+# Reporting
 summary:
   show_summary: true
-  errors_only: false
   show_fixes: true
-  ignore_warnings: false  # Set to true to hide warnings, only show errors
+  ignore_warnings: false
+```
 
-# Static scanner configuration
-static_scanner:
-  scan_changed_only: true    # Only scan changed files
-  check_interval: 3          # Seconds between file checks
-  full_scan_on_startup: true # Full scan on startup
+---
 
-# Profile-specific configurations
+## Profiles (Environments)
+
+You often want different rules for Development vs. CI. You can define profiles in the same file:
+
+```yaml
+# ... base config above ...
+
 development:
   checks:
-    color_contrast: false  # Skip in dev for speed
-
-test:
-  checks:
-    # Test environment uses global settings by default
+    color_contrast: false  # Fast scans in dev
+  static_scanner:
+    scan_changed_only: true
 
 ci:
   checks:
-    color_contrast: true   # Full checks in CI
-
-# Ignored rules with reasons
-ignored_rules:
-  # - rule: form_labels
-  #   reason: "Legacy form, scheduled for refactor in Q2"
-  #   comment: "Will be fixed in PR #123"
+    color_contrast: true   # Full check in CI
+    skip_links: true       # Strict requirements
+  summary:
+    ignore_warnings: true  # Only fail on errors
 ```
 
-## Ruby Configuration
-
-Edit `config/initializers/rails_a11y.rb`:
-
-```ruby
-RailsAccessibilityTesting.configure do |config|
-  # Automatically run checks after system specs
-  config.auto_run_checks = true
-  
-  # Logger for accessibility check output
-  config.logger = Rails.logger
-  
-  # Configuration file path (relative to Rails.root)
-  config.config_path = 'config/accessibility.yml'
-  
-  # Default profile to use (development, test, ci)
-  config.default_profile = :test
-end
-```
-
-## Profiles
-
-Use different configurations for different environments:
-
-- **development**: Faster checks, skip expensive operations
-- **test**: Default settings, balanced checks
-- **ci**: Full checks, strict validation
-
-Set the profile via environment variable:
-
+To run a specific profile:
 ```bash
-RAILS_A11Y_PROFILE=ci bundle exec rspec spec/system/
+RAILS_A11Y_PROFILE=ci bundle exec rspec
 ```
 
-## Ignoring Rules
+---
 
-Temporarily ignore specific rules while fixing issues:
+## Ignoring Specific Rules
+
+Sometimes you have legacy code that you can't fix right away. You can ignore specific rules with a reason:
 
 ```yaml
 ignored_rules:
   - rule: form_labels
-    reason: "Legacy form, scheduled for refactor in Q2"
-    comment: "Will be fixed in PR #123"
+    reason: "Legacy login form, scheduled for redesign"
+  - rule: contrast
+    reason: "Brand colors need update from design team"
 ```
 
-**Important:** Always include a reason and plan to fix. This is for temporary exceptions, not permanent workarounds.
+---
 
-## Skipping Checks in Tests
+## Ruby Configuration
 
-Skip accessibility checks for specific tests:
+For advanced setup (like changing the logger), create an initializer:
 
 ```ruby
-# RSpec
-it "does something", skip_a11y: true do
-  # Accessibility checks won't run
-end
-
-# Minitest
-test "does something", skip_a11y: true do
-  # Accessibility checks won't run
+# config/initializers/rails_a11y.rb
+RailsAccessibilityTesting.configure do |config|
+  config.auto_run_checks = true
+  config.logger = Rails.logger
+  config.default_profile = :test
 end
 ```
