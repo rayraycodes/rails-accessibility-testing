@@ -427,6 +427,10 @@ Prevents duplicate scans of the same page during a test run:
 
 Complete documentation site with all guides, examples, and API reference. The documentation is automatically deployed from this repository.
 
+### 📄 Offline Manual
+
+**[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** - A comprehensive, single-file manual containing all guides, architecture details, and best practices. Perfect for offline reading or sharing as a PDF/DOCX.
+
 > **Note:** 
 > - **Documentation URL:** `https://rayraycodes.github.io/rails-accessibility-testing/`
 > - If the link doesn't work, GitHub Pages may need to be enabled. See [ENABLE_GITHUB_PAGES.md](ENABLE_GITHUB_PAGES.md) for setup instructions.

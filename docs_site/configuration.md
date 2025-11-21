@@ -20,7 +20,7 @@ checks:
   form_labels: true
   image_alt_text: true
   interactive_elements: true
-  heading_hierarchy: true
+  heading: true  # Note: renamed from heading_hierarchy in 1.5.0
   keyboard_accessibility: true
   aria_landmarks: true
   form_errors: true
@@ -28,6 +28,19 @@ checks:
   duplicate_ids: true
   skip_links: true
   color_contrast: false  # Disabled by default (expensive)
+
+# Summary configuration
+summary:
+  show_summary: true
+  errors_only: false
+  show_fixes: true
+  ignore_warnings: false  # Set to true to hide warnings, only show errors
+
+# Static scanner configuration
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on startup
 
 # Profile-specific configurations
 development:
@@ -111,4 +124,3 @@ test "does something", skip_a11y: true do
   # Accessibility checks won't run
 end
 ```
-

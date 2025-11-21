@@ -24,13 +24,11 @@ group :development, :test do
   gem 'axe-core-capybara', '~> 4.0'
   gem 'capybara', '~> 3.40'
   gem 'selenium-webdriver', '~> 4.0'
-  gem 'webdrivers', '~> 5.0'  # Optional but recommended for automatic driver management
+  gem 'webdrivers', '~> 5.0'  # Optional but recommended
 end
 ```
 
-**Important:** 
-- You must explicitly add `selenium-webdriver` to your Gemfile. It's not automatically included as a dependency.
-- **RSpec Rails is required** - The generator creates system specs that require `rspec-rails`. If you're using Minitest, you'll need to manually create your accessibility tests.
+**Important:** You must explicitly add `selenium-webdriver` to your Gemfile. It's not automatically included as a dependency.
 
 Then run:
 
@@ -51,12 +49,81 @@ This creates:
 - `config/accessibility.yml` - Check settings
 - `spec/system/all_pages_accessibility_spec.rb` - Comprehensive spec that tests all GET routes
 - Updates `spec/rails_helper.rb` (if using RSpec)
+- Updates `Procfile.dev` - Adds static accessibility scanner
 
 ### Step 3: Run Your Tests
 
-The generator creates `spec/system/all_pages_accessibility_spec.rb` which automatically tests all GET routes in your application.
+#### Option A: Static File Scanner (Recommended for Development)
 
-You can also create custom system specs for specific pages:
+The generator automatically adds a static accessibility scanner to your `Procfile.dev`:
+
+```procfile
+web: bin/rails server
+css: bin/rails dartsass:watch
+a11y: bundle exec a11y_static_scanner
+```
+
+Then run:
+
+```bash
+bin/dev
+```
+
+This will:
+- Start your Rails server
+- Watch for CSS changes
+- **Continuously scan view files for accessibility issues** - Only scans files that have changed since last scan
+- Shows errors with exact file locations and line numbers
+
+**How it works:**
+- Scans all files on startup
+- Only re-scans files that have been modified
+- Watches for file changes and re-scans automatically
+- No browser needed - scans ERB templates directly
+
+**Configuration** (in `config/accessibility.yml`):
+
+```yaml
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on startup
+```
+
+#### Option B: Run Tests Manually
+
+```bash
+bundle exec rspec spec/system/
+```
+
+Accessibility checks run automatically on every system test that visits a page.
+
+#### Option C: All Pages Spec
+
+Run the comprehensive spec that tests all GET routes:
+
+```bash
+bundle exec rspec spec/system/all_pages_accessibility_spec.rb
+```
+
+## Your First Accessibility Check
+
+Create a simple system spec:
+
+```ruby
+# spec/system/home_spec.rb
+RSpec.describe "Home Page", type: :system do
+  it "displays the welcome message" do
+    visit root_path
+    expect(page).to have_content("Welcome")
+    # ✅ Accessibility checks run automatically here!
+  end
+end
+```
+
+## Running Comprehensive Checks Explicitly
+
+While checks run automatically after each `visit`, you can also run comprehensive checks explicitly:
 
 ```ruby
 # spec/system/my_page_accessibility_spec.rb
@@ -65,37 +132,108 @@ require 'rails_helper'
 RSpec.describe 'My Page Accessibility', type: :system do
   it 'loads the page and runs comprehensive accessibility checks' do
     visit root_path
-    
-    # Run comprehensive accessibility checks
-    # This will fail the test if any accessibility issues are found
-    check_comprehensive_accessibility
-    # ✅ If all checks pass, you'll see: "All comprehensive accessibility checks passed! (11 checks)"
+    check_comprehensive_accessibility  # All 11 checks
   end
 end
 ```
 
-### Step 5: Run Your Tests
+## Understanding the Checks
 
-You can run accessibility checks in several ways:
+Rails Accessibility Testing runs **11 comprehensive checks** automatically. These checks are WCAG 2.1 AA aligned:
 
-#### Option A: Run Tests Manually
+1. **Form Labels** - All form inputs have associated labels
+2. **Image Alt Text** - All images have descriptive alt attributes
+3. **Interactive Elements** - Buttons, links have accessible names
+4. **Heading Hierarchy** - Proper h1-h6 structure without skipping levels
+5. **Keyboard Accessibility** - All interactive elements are keyboard accessible
+6. **ARIA Landmarks** - Proper use of ARIA landmark roles
+7. **Form Error Associations** - Form errors are properly linked to form fields
+8. **Table Structure** - Tables have proper headers
+9. **Duplicate IDs** - No duplicate ID attributes
+10. **Skip Links** - Skip navigation links present
+11. **Color Contrast** - Text meets WCAG contrast requirements (optional, disabled by default)
 
-```bash
-# Run all accessibility specs
-bundle exec rspec spec/system/*_accessibility_spec.rb
+## Configuration
 
-# Or run all system specs
-bundle exec rspec spec/system/
+Edit `config/accessibility.yml`:
+
+```yaml
+wcag_level: AA
+
+# Summary configuration
+summary:
+  show_summary: true
+  errors_only: false
+  show_fixes: true
+  ignore_warnings: false  # Set to true to hide warnings, only show errors
+
+# Static scanner configuration
+static_scanner:
+  scan_changed_only: true    # Only scan changed files
+  check_interval: 3          # Seconds between file checks
+  full_scan_on_startup: true # Full scan on startup
+
+checks:
+  form_labels: true
+  image_alt_text: true
+  interactive_elements: true
+  heading_hierarchy: true
+  keyboard_accessibility: true
+  aria_landmarks: true
+  form_errors: true
+  table_structure: true
+  duplicate_ids: true
+  skip_links: true
+  color_contrast: false  # Disabled by default (expensive)
 ```
 
-Accessibility checks run automatically on every system test that visits a page.
+### Profile-Specific Configuration
 
+```yaml
+development:
+  checks:
+    color_contrast: false  # Skip in dev for speed
+
+ci:
+  checks:
+    color_contrast: true   # Full checks in CI
+```
+
+### Ignoring Rules Temporarily
+
+```yaml
+ignored_rules:
+  - rule: form_labels
+    reason: "Legacy form, scheduled for refactor in Q2"
+    comment: "Will be fixed in PR #123"
+```
+
+## Skipping Checks in Tests
+
+```ruby
+# RSpec
+it "does something", skip_a11y: true do
+  # Accessibility checks won't run
+end
+
+# Minitest
+test "does something", skip_a11y: true do
+  # Accessibility checks won't run
+end
+```
+
+## Next Steps
+
+- **⭐ Read the [System Specs Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/system_specs_for_accessibility.md)** - Recommended approach for reliable accessibility testing
+- **Read the [CI Integration Guide](ci_integration.html)** to set up automated checks
+- **Check out [Writing Accessible Views](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/writing_accessible_views_in_rails.md)** for best practices
+- **See [Working with Designers](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/working_with_designers_and_content_authors.md)** for team collaboration
 
 ## Troubleshooting
 
 ### How do I configure Capybara for system tests?
 
-If you don't already have system tests configured, you need to set up Capybara with a Selenium driver. Create `spec/support/driver.rb`:
+Create `spec/support/driver.rb`:
 
 ```ruby
 # spec/support/driver.rb
@@ -117,9 +255,6 @@ Capybara.register_driver :selenium_chrome_headless do |app|
   )
 end
 
-# Set as default JavaScript driver
-Capybara.javascript_driver = :selenium_chrome_headless
-
 # Configure RSpec to use the driver for system tests
 RSpec.configure do |config|
   config.before(:each, type: :system) do
@@ -128,25 +263,17 @@ RSpec.configure do |config|
 end
 ```
 
-**Note for Rails 8:** Rails 8 uses `driven_by` to configure system tests. Make sure your `spec/support/driver.rb` is loaded by `rails_helper.rb` (it should be automatically loaded if it's in the `spec/support/` directory).
-
 ### How do I install Chrome/Chromium?
-
-System tests require Chrome or Chromium to be installed on your system:
 
 **macOS:**
 ```bash
 brew install --cask google-chrome
-# or for Chromium:
-brew install --cask chromium
 ```
 
 **Linux (Ubuntu/Debian):**
 ```bash
 sudo apt-get update
 sudo apt-get install -y google-chrome-stable
-# or for Chromium:
-sudo apt-get install -y chromium-browser
 ```
 
 **Windows:**
@@ -156,45 +283,27 @@ The `webdrivers` gem will automatically download and manage the ChromeDriver bin
 
 ### Error: `uninitialized constant Selenium::WebDriver::DriverFinder`
 
-This error typically occurs when:
-1. **Missing selenium-webdriver gem** - Make sure you've added `gem 'selenium-webdriver', '~> 4.0'` to your Gemfile
-2. **Version incompatibility** - Ensure you're using compatible versions:
-   - `selenium-webdriver` ~> 4.0 (4.6.0+ recommended for Rails 8)
-   - `webdrivers` ~> 5.0 (if using webdrivers)
-   - `capybara` ~> 3.40
-
-**Solution:**
-```bash
-# Update your Gemfile
-gem 'selenium-webdriver', '~> 4.10'
-gem 'webdrivers', '~> 5.3'
-gem 'capybara', '~> 3.40'
-
-# Then run
-bundle update selenium-webdriver webdrivers capybara
-```
+Make sure you've added `gem 'selenium-webdriver', '~> 4.0'` to your Gemfile and run `bundle install`.
 
 ### Error: Chrome/ChromeDriver not found
 
-**Solution:**
-1. Make sure Chrome is installed (see Step 2.5 above)
+1. Make sure Chrome is installed
 2. If using `webdrivers` gem, it should auto-download ChromeDriver. If not:
    ```bash
    bundle exec webdrivers chrome
    ```
-3. For manual installation, download from [ChromeDriver downloads](https://chromedriver.chromium.org/downloads)
 
 ### System tests not running
 
 **Check:**
 1. Your spec has `type: :system` metadata
 2. `spec/support/driver.rb` exists and is properly configured
-3. `spec/rails_helper.rb` loads support files (should be automatic)
-4. Chrome is installed and accessible
+3. Chrome is installed and accessible
 
 ### Tests are slow
 
 Disable expensive checks in development:
+
 ```yaml
 # config/accessibility.yml
 development:
@@ -204,24 +313,39 @@ development:
 
 ## Version Compatibility
 
-For best results, use these compatible versions:
-
 | Component | Recommended Version | Minimum Version | Required |
 |-----------|-------------------|-----------------|----------|
 | Ruby | 3.1+ | 3.0+ | Yes |
 | Rails | 7.1+ / 8.0+ | 6.0+ | Yes |
-| **RSpec Rails** | **8.0+** | **6.0+** | **Yes (for system specs)** |
+| RSpec Rails | 8.0+ | 6.0+ | Yes (for system specs) |
 | Capybara | ~> 3.40 | 3.0+ | Yes |
 | selenium-webdriver | ~> 4.10 | 4.0+ | Yes |
 | webdrivers | ~> 5.3 | 5.0+ | Optional |
 
-**Rails 8 Notes:**
-- Rails 8 requires `selenium-webdriver` 4.6.0+ for `DriverFinder` support
-- Make sure your `driven_by` configuration is in `spec/support/driver.rb`
-- Rails 8 system tests use `driven_by` instead of direct Capybara configuration
+## Common Questions
 
-## Learn More
+### Q: Do I need to change my existing tests?
 
-- **[System Specs Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/system_specs_for_accessibility.md)** - ⭐ Recommended approach for reliable accessibility testing
-- **[Complete Getting Started Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/getting_started.md)** - Detailed setup instructions
+**A:** No! Rails Accessibility Testing works with your existing system tests. Just run them as usual.
 
+### Q: Will this slow down my tests?
+
+**A:** Checks only run when you visit a page in a system test. The checks are fast, and you can disable expensive ones (like color contrast) in development.
+
+### Q: Can I use this with Minitest?
+
+**A:** Yes! See the Minitest integration in the main README.
+
+### Q: What if I disagree with a check?
+
+**A:** You can disable specific checks in `config/accessibility.yml` or ignore specific rules with a reason.
+
+## Getting Help
+
+- **Documentation:** See the main [README](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/README.md)
+- **Issues:** [GitHub Issues](https://github.com/rayraycodes/rails-accessibility-testing/issues)
+- **Email:** imregan@umich.edu
+
+---
+
+**Ready to make your Rails app accessible?** Run your tests and start fixing issues! 🚀
