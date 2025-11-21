@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#CC0000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B0000;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle with Rails red -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)" stroke="#fff" stroke-width="2"/>
+  
+  <!-- Universal Access Symbol (Accessibility Icon) -->
+  <!-- Circle -->
+  <circle cx="50" cy="35" r="12" fill="none" stroke="#fff" stroke-width="3"/>
+  
+  <!-- Person (simplified) -->
+  <path d="M 50 47 L 50 60 M 50 52 L 42 58 M 50 52 L 58 58" 
+        stroke="#fff" 
+        stroke-width="3" 
+        stroke-linecap="round"/>
+  
+  <!-- Checkmark overlay (representing testing/validation) -->
+  <path d="M 30 70 L 40 80 L 70 50" 
+        stroke="url(#checkGrad)" 
+        stroke-width="6" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
+</svg>
