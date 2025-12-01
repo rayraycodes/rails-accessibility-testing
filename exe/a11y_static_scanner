@@ -29,10 +29,11 @@ begin
     require 'rails_accessibility_testing/config/yaml_loader'
     profile = defined?(Rails) && Rails.env.test? ? :test : :development
     config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
-    enabled = config.fetch('enabled', true)
+    # Support both 'accessibility_enabled' (new) and 'enabled' (legacy) for backward compatibility
+    enabled = config.fetch('accessibility_enabled', config.fetch('enabled', true))
     unless enabled
-      puts "⏸️  Accessibility checks are disabled (enabled: false in config/accessibility.yml)"
-      puts "   Set enabled: true to enable accessibility scanning"
+      puts "⏸️  Accessibility checks are disabled (accessibility_enabled: false in config/accessibility.yml)"
+      puts "   Set accessibility_enabled: true to enable accessibility scanning"
       puts "   Scanner process will remain running but will not scan files"
       puts ""
       # Keep process alive so Foreman doesn't kill other processes

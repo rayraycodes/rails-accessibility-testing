@@ -84,7 +84,8 @@ module RailsAccessibilityTesting
           merged_system_specs = base_system_specs.merge(profile_system_specs)
           
           base_config.merge(
-            'enabled' => profile_config.fetch('enabled', base_config.fetch('enabled', true)),  # Profile can override enabled, default to true
+            # Support both 'accessibility_enabled' (new) and 'enabled' (legacy) for backward compatibility
+            'accessibility_enabled' => profile_config.fetch('accessibility_enabled', profile_config.fetch('enabled', base_config.fetch('accessibility_enabled', base_config.fetch('enabled', true)))),  # Profile can override, supports legacy 'enabled' key
             'checks' => merged_checks,
             'summary' => merged_summary,
             'scan_strategy' => profile_config['scan_strategy'] || base_config['scan_strategy'] || 'paths',
@@ -123,7 +124,7 @@ module RailsAccessibilityTesting
         # Default configuration when no file exists
         def default_config
           {
-            'enabled' => true,  # Global enable/disable flag for all accessibility checks
+            'accessibility_enabled' => true,  # Global enable/disable flag for all accessibility checks
             'wcag_level' => 'AA',
             'checks' => default_checks,
             'summary' => {

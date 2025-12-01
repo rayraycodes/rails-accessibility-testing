@@ -55,6 +55,8 @@ require_relative 'rails_accessibility_testing/line_number_finder'
 require_relative 'rails_accessibility_testing/violation_converter'
 require_relative 'rails_accessibility_testing/static_file_scanner'
 require_relative 'rails_accessibility_testing/static_scanning'
+require_relative 'rails_accessibility_testing/view_composition_builder'
+require_relative 'rails_accessibility_testing/composed_page_scanner'
 # Only load RSpec-specific components when RSpec is available
 if defined?(RSpec)
   require_relative 'rails_accessibility_testing/shared_examples'

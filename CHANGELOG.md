@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.10] - 2024-12-01
+
+### Changed
+- **Configuration flag renamed**: The `enabled` flag has been renamed to `accessibility_enabled` for better clarity. The old `enabled` key is still supported for backward compatibility.
+
+### Added
+- **Composed Page Scanning**: The static scanner now analyzes complete page compositions (layout + view + partials) for page-level accessibility checks, eliminating false positives for heading hierarchy, ARIA landmarks, duplicate IDs, and heading issues.
+- **View Composition Builder**: New comprehensive system that traces the complete page structure by finding all partials recursively across all directories in `app/views`.
+- **Exhaustive Partial Detection**: Enhanced partial detection that finds partials in any subdirectory, not just specific folders. Works for deeply nested namespaces (e.g., `collections/collection_questions`).
+- **ERB Content Detection**: Improved handling of ERB expressions (`<%= ... %>`) to prevent false positives for empty headings and missing accessible names on buttons.
+
+### Changed
+- **Heading Hierarchy Checks**: Now performed on the complete composed page instead of individual files, preventing false positives when H1 is in layout or partials.
+- **ARIA Landmarks Checks**: Now checks for `<main>` landmark across the entire composed page.
+- **Duplicate ID Checks**: Now checks for duplicate IDs across the complete page composition.
+- **Empty Heading Checks**: Now checks for empty headings across the complete composed page.
+- **Partial Search**: Enhanced to traverse ALL folders in `app/views` recursively using `Dir.glob`, making it a general solution that works for any folder structure.
+
+### Fixed
+- Fixed false positive for "Page missing MAIN landmark" when `<main>` is in the layout file.
+- Fixed false positive for "Page has h2 but no h1 heading" when H1 is in a partial rendered via `render @model`.
+- Fixed false positive for "Heading hierarchy skipped (h0 to h2)" when first heading is h2.
+- Fixed false positive for "Duplicate ID 'ERB_CONTENT'" by filtering out ERB placeholder strings.
+- Fixed partial detection for Rails shorthand patterns (`render @model`, `render collection: @models`).
+- Fixed namespaced partial path resolution (e.g., `layouts/_advance_search`).
+- Fixed path normalization to handle both relative and absolute paths consistently.
+
+### Performance
+- Optimized exhaustive directory search to return first match found instead of checking all matches.
+
+## [Unreleased]
+
+### Added
+- **Composed Page Scanning**: The static scanner now analyzes complete page compositions (layout + view + partials) for page-level accessibility checks, eliminating false positives for heading hierarchy, ARIA landmarks, duplicate IDs, and heading issues.
+- **View Composition Builder**: New comprehensive system that traces the complete page structure by finding all partials recursively across all directories in `app/views`.
+- **Exhaustive Partial Detection**: Enhanced partial detection that finds partials in any subdirectory, not just specific folders. Works for deeply nested namespaces (e.g., `collections/collection_questions`).
+- **ERB Content Detection**: Improved handling of ERB expressions (`<%= ... %>`) to prevent false positives for empty headings and missing accessible names on buttons.
+
+### Changed
+- **Heading Hierarchy Checks**: Now performed on the complete composed page instead of individual files, preventing false positives when H1 is in layout or partials.
+- **ARIA Landmarks Checks**: Now checks for `<main>` landmark across the entire composed page.
+- **Duplicate ID Checks**: Now checks for duplicate IDs across the complete page composition.
+- **Empty Heading Checks**: Now checks for empty headings across the complete composed page.
+- **Partial Search**: Enhanced to traverse ALL folders in `app/views` recursively using `Dir.glob`, making it a general solution that works for any folder structure.
+
+### Fixed
+- Fixed false positive for "Page missing MAIN landmark" when `<main>` is in the layout file.
+- Fixed false positive for "Page has h2 but no h1 heading" when H1 is in a partial rendered via `render @model`.
+- Fixed false positive for "Heading hierarchy skipped (h0 to h2)" when first heading is h2.
+- Fixed false positive for "Duplicate ID 'ERB_CONTENT'" by filtering out ERB placeholder strings.
+- Fixed partial detection for Rails shorthand patterns (`render @model`, `render collection: @models`).
+- Fixed namespaced partial path resolution (e.g., `layouts/_advance_search`).
+- Fixed path normalization to handle both relative and absolute paths consistently.
+
+### Performance
+- Optimized exhaustive directory search to return first match found instead of checking all matches.
+
 ## [1.5.9] - 2024-12-01
 
 ### Added

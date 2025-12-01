@@ -7,7 +7,7 @@
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Current Version:** 1.5.5
+**Current Version:** 1.5.9
 
 📖 **[📚 Full Documentation](https://rayraycodes.github.io/rails-accessibility-testing/)** | [💻 GitHub](https://github.com/rayraycodes/rails-accessibility-testing) | [💎 RubyGems](https://rubygems.org/gems/rails_accessibility_testing)
 
@@ -51,6 +51,13 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 - **Accurate error counting**: Properly tracks and displays error/warning counts
 - **Persistent output**: Errors stay visible in terminal (no clearing)
 
+#### 🔍 Composed Page Scanning (NEW in 1.5.9+)
+- **Complete page analysis**: Analyzes full page composition (layout + view + partials) for page-level checks
+- **Eliminates false positives**: No more false positives when H1 is in layout or partials
+- **Exhaustive partial finding**: Traverses ALL folders recursively to find all partials
+- **Works for any structure**: General solution that works for any Rails folder structure (collections, items, profiles, loan_requests, etc.)
+- **Page-level checks**: Heading hierarchy, ARIA landmarks, duplicate IDs, and empty headings checked across complete page
+
 #### 🔍 Smart View File Detection
 - **Intelligent matching**: Automatically finds view files even when action names don't match
 - **Controller directory scanning**: Searches all view files to find the correct template
@@ -61,6 +68,7 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 - **Optimized DOM queries**: Faster image alt checks without JavaScript evaluation
 - **Removed delays**: Eliminated unnecessary sleep calls in live scanner
 - **Efficient scanning**: ~25-30% faster page scans
+- **Optimized directory search**: Returns first match found instead of checking all matches
 
 #### 🎨 Enhanced Developer Experience
 - **Real-time progress**: Step-by-step feedback during accessibility checks

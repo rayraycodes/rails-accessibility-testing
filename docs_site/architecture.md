@@ -3,7 +3,45 @@ layout: default
 title: Architecture
 ---
 
-# Architecture Overview
+# Architecture
+
+## Composed Page Scanning
+
+The gem now uses **composed page scanning** for page-level accessibility checks. This ensures that checks like heading hierarchy, ARIA landmarks, and duplicate IDs are evaluated against the complete rendered page (layout + view + partials), not individual files.
+
+### View Composition Builder
+
+The `ViewCompositionBuilder` class traces the complete page structure:
+
+1. **Finds Layout File**: Identifies the layout file (defaults to `application.html.erb`)
+2. **Finds View File**: The main view file being rendered
+3. **Recursively Finds Partials**: Discovers all partials rendered in the view, including:
+   - Partials in the same directory
+   - Partials in `layouts/`, `shared/`, `application/`
+   - Partials in any subdirectory (exhaustive search)
+   - Nested partials (partials within partials)
+
+### Partial Detection
+
+The gem detects all Rails render patterns:
+- `render 'partial'`
+- `render partial: 'partial'`
+- `render @model` (Rails shorthand)
+- `render collection: @models`
+- `render partial: 'item', collection: @items`
+- `render partial: 'form', locals: {...}`
+
+### Exhaustive Folder Traversal
+
+The partial search traverses ALL folders in `app/views` recursively using `Dir.glob`, ensuring partials are found regardless of their location:
+- `app/views/collections/`
+- `app/views/collections/collection_questions/`
+- `app/views/items/`
+- `app/views/profiles/`
+- `app/views/loan_requests/`
+- Any other nested structure
+
+This makes it a general solution that works for any Rails application structure. Overview
 
 This guide explains how Rails Accessibility Testing works under the hood in simple terms.
 

@@ -52,7 +52,8 @@ module RailsAccessibilityTesting
           require 'rails_accessibility_testing/config/yaml_loader'
           profile = defined?(Rails) && Rails.env.test? ? :test : :development
           config = Config::YamlLoader.load(profile: profile)
-          enabled = config.fetch('enabled', true)  # Default to enabled if not specified
+          # Support both 'accessibility_enabled' (new) and 'enabled' (legacy) for backward compatibility
+          enabled = config.fetch('accessibility_enabled', config.fetch('enabled', true))  # Default to enabled if not specified
           !enabled  # Return true if disabled
         rescue StandardError
           false  # If config can't be loaded, assume enabled

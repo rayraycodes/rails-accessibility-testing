@@ -46,14 +46,34 @@ module RailsAccessibilityTesting
         # render partial: "partial_name"
         # render 'path/to/partial'
         # render partial: 'path/to/partial'
+        # render @model (Rails shorthand - renders _model.html.erb)
+        # render collection: @models (renders _model.html.erb for each)
+        # render partial: 'partial', locals: {...}
+        # render partial: 'partial', collection: @items
         # <%= render 'partial_name' %>
         # <%= render partial: 'partial_name' %>
+        # <%= render @model %>
+        # <%= render collection: @models %>
         
         patterns = [
+          # Standard partial renders (with or without partial: keyword)
           /render\s+(?:partial:\s*)?['"]([^'"]+)['"]/,
           /render\s+(?:partial:\s*)?:(\w+)/,
           /<%=?\s*render\s+(?:partial:\s*)?['"]([^'"]+)['"]/,
-          /<%=?\s*render\s+(?:partial:\s*)?:(\w+)/
+          /<%=?\s*render\s+(?:partial:\s*)?:(\w+)/,
+          # Rails shorthand: render @model (renders _model.html.erb)
+          /render\s+@(\w+)/,
+          /<%=?\s*render\s+@(\w+)/,
+          # Collection renders: render collection: @models (renders _model.html.erb)
+          /render\s+collection:\s*@(\w+)/,
+          /<%=?\s*render\s+collection:\s*@(\w+)/,
+          # Partial with collection: render partial: 'item', collection: @items
+          /render\s+partial:\s*['"]([^'"]+)['"]\s*,\s*collection:/,
+          /<%=?\s*render\s+partial:\s*['"]([^'"]+)['"]\s*,\s*collection:/,
+          # Partial with locals: render partial: 'form', locals: {...}
+          # (extract just the partial name, ignore locals)
+          /render\s+partial:\s*['"]([^'"]+)['"]\s*,\s*locals:/,
+          /<%=?\s*render\s+partial:\s*['"]([^'"]+)['"]\s*,\s*locals:/
         ]
         
         patterns.each do |pattern|
@@ -75,6 +95,23 @@ module RailsAccessibilityTesting
             
             partials << partial_name unless partials.include?(partial_name)
           end
+        end
+        
+        # Also check for Rails shorthand: render @model (renders _model.html.erb)
+        # This is separate because it needs special handling
+        content.scan(/render\s+@(\w+)/) do |match|
+          model_name = match[0]
+          partial_name = model_name.underscore
+          partial_name = "_#{partial_name}" unless partial_name.start_with?('_')
+          partials << partial_name unless partials.include?(partial_name)
+        end
+        
+        # Check for collection renders: render collection: @models
+        content.scan(/render\s+collection:\s*@(\w+)/) do |match|
+          model_name = match[0]
+          partial_name = model_name.underscore.singularize  # collection uses singular
+          partial_name = "_#{partial_name}" unless partial_name.start_with?('_')
+          partials << partial_name unless partials.include?(partial_name)
         end
         
         partials
@@ -210,10 +247,10 @@ module RailsAccessibilityTesting
   end
 
   # Basic accessibility check - runs 5 basic checks
-  # @param force [Boolean] If true, bypasses the enabled: false setting (default: false)
+  # @param force [Boolean] If true, bypasses the accessibility_enabled: false setting (default: false)
   def check_basic_accessibility(force: false)
     # Check if accessibility checks are globally disabled
-    # Manual calls can use force: true to bypass the enabled: false setting
+    # Manual calls can use force: true to bypass the accessibility_enabled: false setting
     return if !force && accessibility_disabled?
     
     @accessibility_errors ||= []
@@ -246,11 +283,11 @@ module RailsAccessibilityTesting
 
   # Full comprehensive check - runs all 11 checks including advanced
   # Uses the RuleEngine and checks from the checks/ folder for consistency
-  # @param force [Boolean] If true, bypasses the enabled: false setting (default: false)
+  # @param force [Boolean] If true, bypasses the accessibility_enabled: false setting (default: false)
   # @return [Hash] Hash with :errors and :warnings counts
   def check_comprehensive_accessibility(force: false)
     # Check if accessibility checks are globally disabled - do this FIRST before any output
-    # Manual calls can use force: true to bypass the enabled: false setting
+    # Manual calls can use force: true to bypass the accessibility_enabled: false setting
     if !force && accessibility_disabled?
       return { errors: 0, warnings: 0, page_context: {} }
     end
@@ -451,7 +488,8 @@ module RailsAccessibilityTesting
       require 'rails_accessibility_testing/config/yaml_loader'
       profile = defined?(Rails) && Rails.env.test? ? :test : :development
       config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
-      enabled = config.fetch('enabled', true)  # Default to enabled if not specified
+      # Support both 'accessibility_enabled' (new) and 'enabled' (legacy) for backward compatibility
+      enabled = config.fetch('accessibility_enabled', config.fetch('enabled', true))  # Default to enabled if not specified
       disabled = !enabled  # Return true if disabled
       disabled
     rescue StandardError => e
