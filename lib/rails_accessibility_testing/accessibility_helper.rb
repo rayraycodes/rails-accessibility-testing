@@ -210,9 +210,11 @@ module RailsAccessibilityTesting
   end
 
   # Basic accessibility check - runs 5 basic checks
-  def check_basic_accessibility
+  # @param force [Boolean] If true, bypasses the enabled: false setting (default: false)
+  def check_basic_accessibility(force: false)
     # Check if accessibility checks are globally disabled
-    return if accessibility_disabled?
+    # Manual calls can use force: true to bypass the enabled: false setting
+    return if !force && accessibility_disabled?
     
     @accessibility_errors ||= []
     @accessibility_warnings ||= []
@@ -244,10 +246,12 @@ module RailsAccessibilityTesting
 
   # Full comprehensive check - runs all 11 checks including advanced
   # Uses the RuleEngine and checks from the checks/ folder for consistency
+  # @param force [Boolean] If true, bypasses the enabled: false setting (default: false)
   # @return [Hash] Hash with :errors and :warnings counts
-  def check_comprehensive_accessibility
+  def check_comprehensive_accessibility(force: false)
     # Check if accessibility checks are globally disabled - do this FIRST before any output
-    if accessibility_disabled?
+    # Manual calls can use force: true to bypass the enabled: false setting
+    if !force && accessibility_disabled?
       return { errors: 0, warnings: 0, page_context: {} }
     end
     

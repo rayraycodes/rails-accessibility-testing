@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.9] - 2024-12-01
+
+### Added
+- **Force option for manual checks**: Added `force: true` parameter to `check_comprehensive_accessibility` and `check_basic_accessibility` to bypass `enabled: false` setting
+- **Manual check flexibility**: You can now force manual checks to run even when accessibility checks are globally disabled
+
+### Improved
+- **Manual check documentation**: Clarified that manual checks can be run separately in RSpec specs regardless of configuration
+
 ## [1.5.8] - 2024-12-01
 
 ### Fixed
