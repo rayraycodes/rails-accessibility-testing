@@ -82,8 +82,14 @@ module RailsAccessibilityTesting
         # Check 4: Empty headings (WCAG 4.1.2)
         headings.each do |heading|
           heading_text = heading.text.strip
+          
+          # Check if heading contains ERB placeholder (for static scanning)
+          # ErbExtractor replaces <%= ... %> with "ERB_CONTENT" so we can detect it
+          has_erb_content = heading_text.include?('ERB_CONTENT')
+          
           # Check if heading is empty or only contains whitespace/formatting
-          if heading_text.empty? || heading_text.match?(/^\s*$/)
+          # Skip if it contains ERB content (will be populated at runtime)
+          if (heading_text.empty? || heading_text.match?(/^\s*$/)) && !has_erb_content
             element_ctx = element_context(heading)
             violations << violation(
               message: "Empty heading detected (<#{heading.tag_name}>) - headings must have accessible text",

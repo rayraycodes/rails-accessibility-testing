@@ -3,6 +3,12 @@
 # This file configures accessibility checks for your Rails application.
 # See https://github.com/your-org/rails-a11y for full documentation.
 
+# Global enable/disable flag
+# Set to false to completely disable all accessibility checks (manual and automatic)
+# When false, check_comprehensive_accessibility and automatic checks will be skipped
+# Default: true
+enabled: true
+
 # WCAG compliance level (A, AA, AAA)
 wcag_level: AA
 
@@ -45,6 +51,16 @@ static_scanner:
   # When false, only scans changed files from the start
   full_scan_on_startup: true
 
+# System specs configuration
+# Controls behavior of accessibility checks in RSpec system specs
+system_specs:
+  # Automatically run accessibility checks after each system spec (true/false)
+  # When true, checks run automatically after each `visit` in system specs
+  # When false, checks only run when explicitly called (e.g., check_comprehensive_accessibility)
+  # Default: false (set to true if you want automatic checks)
+  # Can be overridden per-profile (see profile sections below)
+  auto_run: false
+
 # Global check configuration
 # Set to false to disable a check globally
 checks:
@@ -67,16 +83,22 @@ development:
   checks:
     color_contrast: false  # Skip in dev for speed
     # Add other dev-specific overrides here
+  # system_specs:
+  #   auto_run: true  # Override global system_specs.auto_run for development
 
 test:
   checks:
     # Test environment uses global settings by default
     # Add test-specific overrides here
+  # system_specs:
+  #   auto_run: true  # Override global system_specs.auto_run for test
 
 ci:
   checks:
     color_contrast: true   # Full checks in CI
     # Add CI-specific overrides here
+  # system_specs:
+  #   auto_run: true  # Override global system_specs.auto_run for CI
 
 # Ignored rules with reasons
 # Use this to temporarily ignore specific rules while fixing issues

@@ -32,6 +32,15 @@ module RailsAccessibilityTesting
     # @return [Hash] Hash with :errors and :warnings arrays
     def scan
       return { errors: [], warnings: [] } unless File.exist?(@view_file)
+      
+      # Check if accessibility checks are globally disabled
+      begin
+        config = Config::YamlLoader.load(profile: :test)
+        enabled = config.fetch('enabled', true)
+        return { errors: [], warnings: [] } unless enabled
+      rescue StandardError
+        # If config can't be loaded, continue (assume enabled)
+      end
 
       @file_content = File.read(@view_file)
 
@@ -70,8 +79,11 @@ module RailsAccessibilityTesting
           config: config
         )
       rescue StandardError => e
-        # If engine fails, return empty results
-        # Could log error here if needed
+        # If engine fails, log error and return empty results
+        if defined?(Rails) && Rails.env.development?
+          puts "Error in static scanner: #{e.message}"
+          puts e.backtrace.first(3).join("\n")
+        end
         { errors: [], warnings: [] }
       end
     end

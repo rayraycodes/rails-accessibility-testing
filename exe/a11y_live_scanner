@@ -29,6 +29,27 @@ begin
   unless defined?(RailsAccessibilityTesting::AccessibilityHelper)
     raise LoadError, "RailsAccessibilityTesting::AccessibilityHelper not found after requiring gem"
   end
+  
+  # Check if accessibility checks are globally disabled
+  begin
+    require 'rails_accessibility_testing/config/yaml_loader'
+    profile = defined?(Rails) && Rails.env.test? ? :test : :development
+    config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+    enabled = config.fetch('enabled', true)
+    unless enabled
+      puts "⏸️  Accessibility checks are disabled (enabled: false in config/accessibility.yml)"
+      puts "   Set enabled: true to enable accessibility scanning"
+      puts "   Scanner process will remain running but will not scan files"
+      puts ""
+      # Keep process alive so Foreman doesn't kill other processes
+      # Sleep indefinitely until interrupted
+      loop do
+        sleep 60
+      end
+    end
+  rescue StandardError => e
+    # If config can't be loaded, continue (assume enabled)
+  end
 rescue LoadError => e
   $stderr.puts "❌ Error loading rails_accessibility_testing gem: #{e.message}"
   $stderr.puts "   Make sure the gem is installed: bundle install"

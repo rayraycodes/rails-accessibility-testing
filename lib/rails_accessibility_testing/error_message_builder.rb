@@ -138,6 +138,8 @@ module RailsAccessibilityTesting
           custom_element_remediation(error_type, element_context)
         when /Duplicate IDs found/i
           duplicate_ids_remediation(element_context)
+        when /Button contains.*heading|heading.*inside.*button/i
+          button_heading_remediation(error_type, element_context)
         else
           # Fallback: try to match on key phrases even if format is slightly different
           case error_type.to_s
@@ -169,6 +171,8 @@ module RailsAccessibilityTesting
             custom_element_remediation(error_type, element_context)
           when /duplicate.*id/i
             duplicate_ids_remediation(element_context)
+          when /button.*heading|heading.*button/i
+            button_heading_remediation(error_type, element_context)
           else
             "   Please review the element details above and fix the accessibility issue."
           end
@@ -403,6 +407,30 @@ module RailsAccessibilityTesting
         remediation += "   <div id=\"<%= dom_id(@item) %>\">...</div>\n\n"
         remediation += "   💡 Best Practice: IDs must be unique within a page.\n"
         remediation += "      Screen readers and JavaScript rely on unique IDs.\n"
+        remediation
+      end
+
+      def button_heading_remediation(error_type, element_context)
+        heading_level = element_context[:nested_heading] || 'H2'
+        heading_text = element_context[:heading_text] || 'Section Title'
+        
+        remediation = "   Remove heading from inside button:\n\n"
+        remediation += "   ❌ Current (Bad):\n"
+        remediation += "   <button>\n"
+        remediation += "     <#{heading_level.downcase}>#{heading_text}</#{heading_level.downcase}>\n"
+        remediation += "   </button>\n\n"
+        remediation += "   ✅ Solution 1: Use plain text with aria-label:\n"
+        remediation += "   <button aria-label=\"#{heading_text}\">#{heading_text}</button>\n\n"
+        remediation += "   ✅ Solution 2: Use span/div with CSS styling:\n"
+        remediation += "   <button>\n"
+        remediation += "     <span class=\"button-title\">#{heading_text}</span>\n"
+        remediation += "   </button>\n\n"
+        remediation += "   ✅ Solution 3: Separate heading and button:\n"
+        remediation += "   <#{heading_level.downcase}>#{heading_text}</#{heading_level.downcase}>\n"
+        remediation += "   <button>Action</button>\n\n"
+        remediation += "   💡 Best Practice: Headings should not be nested inside buttons.\n"
+        remediation += "      Buttons are interactive elements, headings are structural.\n"
+        remediation += "      Use plain text or aria-label for button labels.\n"
         remediation
       end
 

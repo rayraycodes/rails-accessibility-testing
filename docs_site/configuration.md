@@ -51,6 +51,15 @@ static_scanner:
   # Force full scan on startup (true/false)
   full_scan_on_startup: true
 
+# System specs configuration
+# Controls behavior of accessibility checks in RSpec system specs
+system_specs:
+  # Automatically run accessibility checks after each system spec (true/false)
+  # When true, checks run automatically after each `visit` in system specs
+  # When false, checks only run when explicitly called (e.g., check_comprehensive_accessibility)
+  # Can be overridden per-profile (see profile sections below)
+  auto_run: true
+
 # Global check configuration
 # Set to false to disable a check globally
 checks:
@@ -79,14 +88,20 @@ You can define different configurations for different environments:
 development:
   checks:
     color_contrast: false  # Skip in dev for speed
+  # system_specs:
+  #   auto_run: false  # Disable auto-run in development for faster tests
 
 test:
   checks:
     # Test environment uses global settings by default
+  # system_specs:
+  #   auto_run: true  # Enable auto-run in test (default)
 
 ci:
   checks:
     color_contrast: true   # Full checks in CI
+  # system_specs:
+  #   auto_run: true  # Always run in CI
 ```
 
 To run a specific profile:
@@ -111,6 +126,46 @@ ignored_rules:
 
 ---
 
+## System Specs Configuration
+
+Control whether accessibility checks run automatically in system specs:
+
+```yaml
+# config/accessibility.yml
+system_specs:
+  auto_run: true  # Run checks automatically (default: true)
+```
+
+**When `auto_run: true`** (default):
+- Checks run automatically after each `visit` in system specs
+- No need to manually call `check_comprehensive_accessibility`
+- Great for continuous testing
+
+**When `auto_run: false`**:
+- Checks only run when explicitly called
+- Use `check_comprehensive_accessibility` in your specs
+- Useful when you want more control over when checks run
+
+**Profile-specific overrides:**
+
+```yaml
+development:
+  system_specs:
+    auto_run: false  # Disable in development for faster tests
+
+test:
+  system_specs:
+    auto_run: true   # Always run in test environment
+
+ci:
+  system_specs:
+    auto_run: true   # Always run in CI
+```
+
+**Note:** YAML configuration takes precedence over the Ruby initializer configuration. If `system_specs.auto_run` is set in YAML, it will override `config.auto_run_checks` from the initializer.
+
+---
+
 ## Ruby Configuration
 
 For advanced setup (like changing the logger), create an initializer:
@@ -118,8 +173,10 @@ For advanced setup (like changing the logger), create an initializer:
 ```ruby
 # config/initializers/rails_a11y.rb
 RailsAccessibilityTesting.configure do |config|
-  config.auto_run_checks = true
+  config.auto_run_checks = true  # Note: Can be overridden by YAML config
   config.logger = Rails.logger
   config.default_profile = :test
 end
 ```
+
+**Important:** The YAML `system_specs.auto_run` setting takes precedence over `config.auto_run_checks` from the initializer. Use YAML for environment-specific control.

@@ -9,10 +9,55 @@ module RailsAccessibilityTesting
         enable_spec_type_inference(config)
         include_matchers(config)
         include_helpers(config)
-        setup_automatic_checks(config) if RailsAccessibilityTesting.config.auto_run_checks
+        
+        # Check YAML config first, then fall back to initializer config
+        auto_run = should_auto_run_checks?
+        setup_automatic_checks(config) if auto_run
+      end
+      
+      # Determine if checks should run automatically
+      # Checks YAML config first, then falls back to initializer config
+      # 
+      # Priority:
+      # 1. YAML config: system_specs.auto_run (if explicitly set)
+      # 2. Initializer config: config.auto_run_checks (fallback)
+      def should_auto_run_checks?
+        # Try to load from YAML config
+        begin
+          require 'rails_accessibility_testing/config/yaml_loader'
+          profile = defined?(Rails) && Rails.env.test? ? :test : :development
+          yaml_config = Config::YamlLoader.load(profile: profile)
+          
+          # Check if system_specs.auto_run is explicitly set in YAML
+          # Use key? to distinguish between nil/not-set vs explicitly false
+          if yaml_config['system_specs'] && yaml_config['system_specs'].key?('auto_run')
+            auto_run_value = yaml_config['system_specs']['auto_run']
+            # Return the value (true or false) - explicitly set in YAML
+            return auto_run_value
+          end
+        rescue StandardError => e
+          # If YAML loading fails, fall through to initializer config
+          # Could log error here if needed for debugging
+        end
+        
+        # Fall back to initializer configuration (default: true)
+        RailsAccessibilityTesting.config.auto_run_checks
       end
 
       private
+
+      # Check if accessibility checks are globally disabled via config
+      def accessibility_globally_disabled?
+        begin
+          require 'rails_accessibility_testing/config/yaml_loader'
+          profile = defined?(Rails) && Rails.env.test? ? :test : :development
+          config = Config::YamlLoader.load(profile: profile)
+          enabled = config.fetch('enabled', true)  # Default to enabled if not specified
+          !enabled  # Return true if disabled
+        rescue StandardError
+          false  # If config can't be loaded, assume enabled
+        end
+      end
 
       # Enable automatic spec type inference from file location
       def enable_spec_type_inference(config)
@@ -32,6 +77,9 @@ module RailsAccessibilityTesting
 
       # Setup automatic accessibility checks
       def setup_automatic_checks(config)
+        # Check if accessibility checks are globally disabled
+        return if accessibility_globally_disabled?
+        
         # Use class variable to track results across all examples
         @@accessibility_results = {
           pages_tested: [],

@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.8] - 2024-12-01
+
+### Fixed
+- **ERB template detection**: Fixed false positives for empty headings and missing accessible names when ERB output tags (`<%= ... %>`) are present
+- **Static scanning**: ERB tags are now replaced with placeholder text so checks can detect that content will be present at runtime
+- **Scanner process management**: Static and live scanners now stay alive (sleep loop) when `enabled: false` instead of exiting, preventing Foreman from killing other processes
+
+### Added
+- **Global enable/disable flag**: Added `enabled` configuration option in `accessibility.yml` to completely disable all accessibility checks (manual and automatic)
+- **ERB content detection**: `ErbExtractor` now replaces `<%= ... %>` with `"ERB_CONTENT"` placeholder instead of removing it
+- **ERB-aware checks**: `HeadingCheck` and `InteractiveElementsCheck` now detect ERB placeholders and skip empty checks
+
+### Improved
+- **Static scanner behavior**: When `enabled: false`, scanner shows message and keeps running instead of exiting
+- **Live scanner behavior**: When `enabled: false`, scanner shows message and keeps running instead of exiting
+
+## [1.5.7] - 2024-12-01
+
+### Fixed
+- **Configuration loading**: Improved robustness of `should_auto_run_checks?` method with better error handling and documentation
+- **RSpec integration**: Enhanced configuration priority logic to ensure YAML config is properly respected
+
+### Improved
+- **Code documentation**: Added clearer comments explaining configuration priority and behavior
+- **Error handling**: Better handling of edge cases in configuration loading
+
+## [1.5.6] - 2024-12-01
+
+### Changed
+- **System specs auto-run default**: Changed default `system_specs.auto_run` to `false` in YAML configuration
+- **Breaking change**: Accessibility checks no longer run automatically in system specs by default
+- **Migration**: Users who want automatic checks should set `system_specs.auto_run: true` in their `config/accessibility.yml`
+
+### Added
+- **H2 inside button detection**: Added check for headings nested inside button elements (accessibility violation)
+- **Improved view file detection**: Better prioritization of view files vs layout files for error attribution
+- **YAML configuration for system specs**: Added `system_specs.auto_run` configuration option in YAML
+
+### Improved
+- **Error reporting**: Improved accuracy of error attribution to correct view files based on Rails HTML structure
+- **Layout detection**: Better detection of layout elements vs yield content (view files)
+- **System spec output**: Reduced terminal clutter by only showing errors, not success messages
+
 ## [1.5.5] - 2024-11-20
 
 ### Fixed

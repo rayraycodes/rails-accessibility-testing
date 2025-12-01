@@ -137,8 +137,12 @@ module RailsAccessibilityTesting
         nil
       end
       
-      # Determine likely view file (simplified version)
-      # Also checks for partials that might contain the element
+      # Determine likely view file (simplified version for checks)
+      # Uses same priority logic as AccessibilityHelper:
+      # 1. View file (yield content) - most common
+      # 2. Partials in view file
+      # 3. Layout partials
+      # 4. Layout file
       def determine_view_file(element_context = nil)
         return nil unless safe_page_path
         
@@ -150,20 +154,43 @@ module RailsAccessibilityTesting
             controller = route[:controller]
             action = route[:action]
             
+            # Priority 1: View file (yield content)
             view_file = find_view_file_for_controller_action(controller, action)
             
-            # If we found the view file and have element context, check for partials
+            # Priority 2: Partials rendered in the view file
             if view_file && element_context
-              # Scan the view file for rendered partials
               partials_in_view = find_partials_in_view_file(view_file)
               
-              # Check if element matches any partial in the view
               if partials_in_view.any?
                 partial_file = find_partial_for_element_in_list(controller, element_context, partials_in_view)
                 return partial_file if partial_file
               end
             end
             
+            # Priority 3: Layout partials (if element is in layout area)
+            if element_context
+              # Use the same element_in_layout? logic from AccessibilityHelper
+              # Check if element is likely in layout (navbar, footer, etc.)
+              parent = element_context[:parent]
+              if parent
+                parent_tag = parent[:tag].to_s.downcase
+                parent_id = parent[:id].to_s.downcase
+                
+                # Skip if inside <main> (yield content)
+                unless parent_tag == 'main' || parent_id.include?('maincontent') || parent_id.include?('main-content')
+                  layout_indicators = ['navbar', 'nav', 'footer', 'header', 'main-nav', 'sidebar', 'skip']
+                  classes = parent[:classes].to_s.downcase
+                  id = parent[:id].to_s.downcase
+                  
+                  if layout_indicators.any? { |indicator| classes.include?(indicator) || id.include?(indicator) }
+                    layout_partial = find_partial_in_layouts(element_context)
+                    return layout_partial if layout_partial
+                  end
+                end
+              end
+            end
+            
+            # Return view file (yield content) - most common case
             view_file
           rescue StandardError
             nil

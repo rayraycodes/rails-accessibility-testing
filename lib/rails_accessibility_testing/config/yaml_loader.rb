@@ -78,11 +78,18 @@ module RailsAccessibilityTesting
           profile_static_scanner = profile_config['static_scanner'] || {}
           merged_static_scanner = base_static_scanner.merge(profile_static_scanner)
           
+          # Merge system_specs config
+          base_system_specs = base_config['system_specs'] || {}
+          profile_system_specs = profile_config['system_specs'] || {}
+          merged_system_specs = base_system_specs.merge(profile_system_specs)
+          
           base_config.merge(
+            'enabled' => profile_config.fetch('enabled', base_config.fetch('enabled', true)),  # Profile can override enabled, default to true
             'checks' => merged_checks,
             'summary' => merged_summary,
             'scan_strategy' => profile_config['scan_strategy'] || base_config['scan_strategy'] || 'paths',
             'static_scanner' => merged_static_scanner,
+            'system_specs' => merged_system_specs,
             'profile' => profile.to_s,
             'ignored_rules' => parse_ignored_rules(parsed, profile)
           )
@@ -116,6 +123,7 @@ module RailsAccessibilityTesting
         # Default configuration when no file exists
         def default_config
           {
+            'enabled' => true,  # Global enable/disable flag for all accessibility checks
             'wcag_level' => 'AA',
             'checks' => default_checks,
             'summary' => {
@@ -125,6 +133,9 @@ module RailsAccessibilityTesting
               'ignore_warnings' => false
             },
             'scan_strategy' => 'paths',
+            'system_specs' => {
+              'auto_run' => false  # Run accessibility checks automatically in system specs (default: false)
+            },
             'ignored_rules' => [],
             'profile' => 'test'
           }

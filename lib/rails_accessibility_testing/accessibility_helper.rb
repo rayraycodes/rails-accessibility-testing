@@ -115,6 +115,43 @@ module RailsAccessibilityTesting
         
         nil
       end
+      
+      # Find partial in layouts directory based on element context
+      def find_partial_in_layouts(element_context)
+        return nil unless element_context
+        
+        extensions = %w[erb haml slim]
+        id = element_context[:id].to_s
+        classes = element_context[:classes].to_s
+        
+        # Common layout partial names
+        partial_names = []
+        partial_names << id.split('-').first if id.present?
+        partial_names << id.split('_').first if id.present?
+        
+        if classes.present?
+          classes.split(/\s+/).each do |cls|
+            partial_names << cls.split('-').first
+            partial_names << cls.split('_').first
+          end
+        end
+        
+        # Check all partials in layouts directory
+        extensions.each do |ext|
+          # First try specific names
+          partial_names.uniq.each do |partial_name|
+            next if partial_name.blank?
+            partial_path = "app/views/layouts/_#{partial_name}.html.#{ext}"
+            return partial_path if File.exist?(partial_path)
+          end
+          
+          # If no match, scan all layout partials and try to match by content
+          layout_partials = Dir.glob("app/views/layouts/_*.html.#{ext}")
+          # Could add content-based matching here if needed
+        end
+        
+        nil
+      end
     end
     
     # Include PartialDetection in AccessibilityHelper so methods are available
@@ -174,6 +211,9 @@ module RailsAccessibilityTesting
 
   # Basic accessibility check - runs 5 basic checks
   def check_basic_accessibility
+    # Check if accessibility checks are globally disabled
+    return if accessibility_disabled?
+    
     @accessibility_errors ||= []
     @accessibility_warnings ||= []
     
@@ -206,6 +246,11 @@ module RailsAccessibilityTesting
   # Uses the RuleEngine and checks from the checks/ folder for consistency
   # @return [Hash] Hash with :errors and :warnings counts
   def check_comprehensive_accessibility
+    # Check if accessibility checks are globally disabled - do this FIRST before any output
+    if accessibility_disabled?
+      return { errors: 0, warnings: 0, page_context: {} }
+    end
+    
     # Note: Page scanning cache is disabled for RSpec tests to ensure accurate error reporting
     # The cache is only used in live scanner to avoid duplicate scans
     
@@ -395,6 +440,21 @@ module RailsAccessibilityTesting
   end
 
   private
+
+  # Check if accessibility checks are globally disabled via config
+  def accessibility_disabled?
+    begin
+      require 'rails_accessibility_testing/config/yaml_loader'
+      profile = defined?(Rails) && Rails.env.test? ? :test : :development
+      config = RailsAccessibilityTesting::Config::YamlLoader.load(profile: profile)
+      enabled = config.fetch('enabled', true)  # Default to enabled if not specified
+      disabled = !enabled  # Return true if disabled
+      disabled
+    rescue StandardError => e
+      # If config can't be loaded, assume enabled
+      false
+    end
+  end
 
   # Format timestamp for terminal output (shorter, more readable)
   def format_timestamp_for_terminal
@@ -598,6 +658,16 @@ module RailsAccessibilityTesting
   end
 
   # Determine likely view file based on Rails path and element context
+  # 
+  # Priority order (based on Rails HTML structure):
+  # 1. View file (yield content) - most common location for page-specific issues
+  # 2. Partials rendered in the view file
+  # 3. Layout partials (navbar, footer) - site-wide components
+  # 4. Layout file (application.html.erb) - wrapper structure
+  #
+  # This ensures errors are attributed to the correct file:
+  # - Page-specific issues → view files (yield content)
+  # - Site-wide issues → layout partials
   def determine_view_file(path, url, element_context = nil)
     return nil unless path
     
@@ -610,10 +680,12 @@ module RailsAccessibilityTesting
         controller = route[:controller]
         action = route[:action]
         
-        # Try to find the exact view file
+        # Priority 1: Try to find the exact view file (yield content)
+        # This is where most page-specific accessibility issues occur
         view_file = find_view_file_for_controller_action(controller, action)
         
-        # If we found the view file, check for partials that might contain the element
+        # Priority 2: Check for partials rendered in the view file
+        # These are page-specific partials (e.g., _form, _item_card)
         if view_file && element_context
           # Scan the view file for rendered partials
           partials_in_view = find_partials_in_view_file(view_file)
@@ -623,23 +695,25 @@ module RailsAccessibilityTesting
           return partial_file if partial_file
         end
         
-        # If element might be in a partial or layout, check those too
-        if element_context
-          # Check if element is likely in a layout (navbar, footer, etc.)
-          if element_in_layout?(element_context)
-            layout_file = find_layout_file
-            return layout_file if layout_file
-            
-            # Also check layout partials
-            layout_partial = find_partial_in_layouts(element_context)
-            return layout_partial if layout_partial
-          end
+        # Priority 3: Check if element is in a layout partial (navbar, footer, etc.)
+        # These are site-wide components rendered in the layout
+        if element_context && element_in_layout?(element_context)
+          # Check layout partials first (more specific than layout file)
+          layout_partial = find_partial_in_layouts(element_context)
+          return layout_partial if layout_partial
           
-          # Check if element is in a partial based on context
+          # Then check layout file itself
+          layout_file = find_layout_file
+          return layout_file if layout_file
+        end
+        
+        # Priority 4: Check other partials (shared partials, etc.)
+        if element_context
           partial_file = find_partial_for_element(controller, element_context)
           return partial_file if partial_file
         end
         
+        # Return view file if found (yield content - most common case)
         return view_file if view_file
       rescue StandardError => e
         # Fall through to path-based detection
@@ -713,6 +787,15 @@ module RailsAccessibilityTesting
   end
 
   # Check if element is likely in a layout (navbar, footer, etc.)
+  # vs yield content (main area)
+  #
+  # Based on Rails HTML structure:
+  # - Layout elements: navbar, footer, header (outside <main>)
+  # - Yield content: elements inside <main id="maincontent"> (view files)
+  #
+  # This helps correctly attribute errors:
+  # - Layout issues → layout partials/files
+  # - Page-specific issues → view files (yield content)
   def element_in_layout?(element_context)
     return false unless element_context
     
@@ -720,8 +803,18 @@ module RailsAccessibilityTesting
     parent = element_context[:parent]
     return false unless parent
     
-    # Common layout class/id patterns
-    layout_indicators = ['navbar', 'nav', 'footer', 'header', 'main-nav', 'sidebar']
+    # If element is inside <main>, it's likely yield content (view file), not layout
+    # Check if parent or ancestor is main element
+    parent_tag = parent[:tag].to_s.downcase
+    parent_id = parent[:id].to_s.downcase
+    
+    # Elements inside <main> are yield content, not layout
+    if parent_tag == 'main' || parent_id.include?('maincontent') || parent_id.include?('main-content')
+      return false
+    end
+    
+    # Common layout class/id patterns (navbar, footer, header)
+    layout_indicators = ['navbar', 'nav', 'footer', 'header', 'main-nav', 'sidebar', 'skip']
     
     classes = parent[:classes].to_s.downcase
     id = parent[:id].to_s.downcase

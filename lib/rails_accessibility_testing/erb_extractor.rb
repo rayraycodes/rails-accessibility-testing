@@ -126,10 +126,14 @@ module RailsAccessibilityTesting
       end
     end
 
-    # Remove ERB tags
+    # Remove or replace ERB tags
+    # Replace ERB output tags (<%= ... %>) with placeholder text so checks can detect non-empty content
+    # Remove ERB logic tags (<% ... %>) as they don't produce output
     def remove_erb_tags
-      @content.gsub!(/<%[^%]*%>/, '')
-      @content.gsub!(/<%=.*?%>/, '')
+      # Replace ERB output tags with placeholder - this allows checks to detect that content will be present
+      @content.gsub!(/<%=(.*?)%>/m, 'ERB_CONTENT')
+      # Remove ERB logic tags (they don't produce visible content)
+      @content.gsub!(/<%[^=][^%]*%>/, '')
     end
 
     # Clean up extra whitespace
