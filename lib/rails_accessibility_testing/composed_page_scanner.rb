@@ -203,6 +203,10 @@ module RailsAccessibilityTesting
           next if id.nil? || id.to_s.strip.empty?
           # Skip ERB_CONTENT placeholder - it's not a real ID
           next if id == 'ERB_CONTENT'
+          # Skip IDs that contain ERB_CONTENT - these are dynamic IDs that can't be statically verified
+          # Example: "collection_answers_ERB_CONTENT_ERB_CONTENT_" - the actual IDs will be different at runtime
+          # because the ERB expressions will evaluate to different values
+          next if id.include?('ERB_CONTENT')
           
           id_map[id] ||= []
           line = find_line_number_for_element(content, element)

@@ -6,6 +6,15 @@ module RailsAccessibilityTesting
     #
     # WCAG 2.1 AA: 1.3.1 Info and Relationships (Level A)
     #
+    # @note ERB template handling:
+    #   - Dynamic IDs with ERB placeholders (e.g., "collection_answers_ERB_CONTENT_ERB_CONTENT_")
+    #     are matched against labels with the same ERB structure
+    #   - ErbExtractor ensures that IDs and label "for" attributes with matching ERB patterns
+    #     will have the same "ERB_CONTENT" placeholder structure, allowing exact matching
+    #   - This correctly handles cases like:
+    #     <input id="collection_answers_<%= question.id %>_<%= option.id %>_">
+    #     <%= label_tag "collection_answers_#{question.id}_#{option.id}_", option.value %>
+    #
     # @api private
     class FormLabelsCheck < BaseCheck
       def self.rule_name
@@ -16,11 +25,21 @@ module RailsAccessibilityTesting
         violations = []
         page_context = self.page_context
         
-        page.all('input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="tel"], input[type="url"], input[type="search"], input[type="date"], input[type="time"], input[type="datetime-local"], textarea, select').each do |input|
+        # Also check checkbox and radio inputs (they need labels too)
+        page.all('input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="tel"], input[type="url"], input[type="search"], input[type="date"], input[type="time"], input[type="datetime-local"], input[type="checkbox"], input[type="radio"], textarea, select').each do |input|
           id = input[:id]
           next if id.nil? || id.to_s.strip.empty?
           
+          # Skip ERB_CONTENT placeholder - it's not a real ID, just a marker for dynamic content
+          next if id == 'ERB_CONTENT'
+          
+          # Check for label with matching for attribute
+          # Handle ERB placeholders in IDs: ErbExtractor preserves the structure of dynamic IDs
+          # so "collection_answers_<%= question.id %>_<%= option.id %>_" becomes
+          # "collection_answers_ERB_CONTENT_ERB_CONTENT_", and label_tag with the same pattern
+          # will also become "collection_answers_ERB_CONTENT_ERB_CONTENT_", so they should match exactly
           has_label = page.has_css?("label[for='#{id}']", wait: false)
+          
           aria_label = input[:"aria-label"]
           aria_labelledby = input[:"aria-labelledby"]
           has_aria_label = aria_label && !aria_label.to_s.strip.empty?

@@ -142,14 +142,20 @@ end
 Rails Accessibility Testing runs **11 comprehensive checks** automatically. These checks are WCAG 2.1 AA aligned:
 
 1. **Form Labels** - All form inputs have associated labels
+   - ✅ Correctly handles dynamic IDs from ERB templates (e.g., `collection_answers_<%= question.id %>_<%= option.id %>_`)
+   - ✅ Matches labels to inputs even when IDs contain ERB expressions
 2. **Image Alt Text** - All images have descriptive alt attributes
 3. **Interactive Elements** - Buttons, links have accessible names
+   - ✅ Only flags links with `href="#"` that have no accessible name (visible text, `aria-label`, or `aria-labelledby`)
+   - ✅ Avoids false positives for valid anchor links with proper labeling
 4. **Heading Hierarchy** - Proper h1-h6 structure without skipping levels (checked across complete page: layout + view + partials)
 5. **Keyboard Accessibility** - All interactive elements are keyboard accessible
 6. **ARIA Landmarks** - Proper use of ARIA landmark roles (checked across complete page: layout + view + partials)
 7. **Form Error Associations** - Form errors are properly linked to form fields
 8. **Table Structure** - Tables have proper headers
 9. **Duplicate IDs** - No duplicate ID attributes (checked across complete page: layout + view + partials)
+   - ✅ Intelligently excludes dynamic IDs with ERB placeholders from duplicate checking
+   - ✅ Prevents false positives for checkbox/radio groups in loops
 10. **Skip Links** - Skip navigation links present
 11. **Color Contrast** - Text meets WCAG contrast requirements (optional, disabled by default)
 

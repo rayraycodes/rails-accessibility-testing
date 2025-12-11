@@ -7,7 +7,7 @@ title: Home
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Version:** 1.5.9
+**Version:** 1.6.0
 
 Rails Accessibility Testing is a comprehensive, opinionated but configurable gem that makes accessibility testing as natural as unit testing. It integrates seamlessly into your Rails workflow, catching accessibility issues as you code—not after deployment.
 
@@ -36,6 +36,10 @@ Rails Accessibility Testing fills a critical gap in the Rails testing ecosystem.
 - **Continuous monitoring**: Watches for file changes and re-scans automatically
 - **YAML configuration**: Fully configurable via `config/accessibility.yml`
 - **Reuses existing checks**: Leverages all 11 accessibility checks via RuleEngine
+- **Intelligent ERB handling**: Correctly processes dynamic IDs and ERB expressions
+  - Preserves structure of dynamic IDs (e.g., `collection_answers_<%= question.id %>_<%= option.id %>_`)
+  - Matches labels to inputs with dynamic IDs
+  - Excludes dynamic IDs from duplicate checking (prevents false positives)
 
 #### 🎯 Live Accessibility Scanner
 - **Real-time scanning**: Automatically scans pages as you browse during development
@@ -140,15 +144,15 @@ This will:
 
 The gem automatically runs **11 comprehensive accessibility checks**:
 
-1. ✅ **Form Labels** - All form inputs have associated labels
+1. ✅ **Form Labels** - All form inputs have associated labels (handles dynamic IDs from ERB templates)
 2. ✅ **Image Alt Text** - All images have descriptive alt attributes
-3. ✅ **Interactive Elements** - Buttons, links have accessible names (including links with images that have alt text)
+3. ✅ **Interactive Elements** - Buttons, links have accessible names (including links with images that have alt text; correctly handles links with `href="#"`)
 4. ✅ **Heading Hierarchy** - Proper h1-h6 structure (detects missing h1, multiple h1s, skipped levels, and h2+ without h1)
 5. ✅ **Keyboard Accessibility** - All interactive elements keyboard accessible
 6. ✅ **ARIA Landmarks** - Proper use of ARIA landmark roles
 7. ✅ **Form Error Associations** - Errors linked to form fields
 8. ✅ **Table Structure** - Tables have proper headers
-9. ✅ **Duplicate IDs** - No duplicate ID attributes
+9. ✅ **Duplicate IDs** - No duplicate ID attributes (intelligently handles dynamic IDs from ERB templates)
 10. ✅ **Skip Links** - Skip navigation links present (detects various patterns)
 11. ✅ **Color Contrast** - Text meets contrast requirements (optional)
 

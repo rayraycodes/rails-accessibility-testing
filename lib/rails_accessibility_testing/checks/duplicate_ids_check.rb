@@ -6,6 +6,13 @@ module RailsAccessibilityTesting
     #
     # WCAG 2.1 AA: 4.1.1 Parsing (Level A)
     #
+    # @note ERB template handling:
+    #   - IDs containing "ERB_CONTENT" placeholders are excluded from duplicate checking
+    #   - These are dynamic IDs that will have different values at runtime
+    #   - Example: "collection_answers_ERB_CONTENT_ERB_CONTENT_" represents a dynamic ID
+    #     that will be unique for each checkbox/radio option when rendered
+    #   - Static analysis cannot determine if dynamic IDs will be duplicates, so they are skipped
+    #
     # @api private
     class DuplicateIdsCheck < BaseCheck
       def self.rule_name
@@ -14,7 +21,11 @@ module RailsAccessibilityTesting
       
       def check
         violations = []
-        all_ids = page.all('[id]').map { |el| el[:id] }.compact
+        # Collect all IDs, filtering out those with ERB_CONTENT placeholders
+        # IDs with ERB_CONTENT are dynamic and can't be statically verified for duplicates
+        # Example: "collection_answers_ERB_CONTENT_ERB_CONTENT_" - the actual IDs will be different at runtime
+        # because the ERB expressions will evaluate to different values
+        all_ids = page.all('[id]').map { |el| el[:id] }.compact.reject { |id| id.include?('ERB_CONTENT') }
         duplicates = all_ids.group_by(&:itself).select { |_k, v| v.length > 1 }.keys
         
         if duplicates.any?

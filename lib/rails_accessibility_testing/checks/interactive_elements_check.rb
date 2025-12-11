@@ -6,6 +6,12 @@ module RailsAccessibilityTesting
     #
     # WCAG 2.1 AA: 2.4.4 Link Purpose (Level A), 4.1.2 Name, Role, Value (Level A)
     #
+    # @note Links with href="#":
+    #   - Only flags anchors with href="#" that have NO accessible name
+    #   - An accessible name can be: visible text, aria-label, or aria-labelledby
+    #   - Links with href="#" that have visible text or ARIA attributes are valid and NOT flagged
+    #   - This avoids false positives for valid anchor links that use href="#" with proper labeling
+    #
     # @api private
     class InteractiveElementsCheck < BaseCheck
       def self.rule_name
@@ -45,6 +51,7 @@ module RailsAccessibilityTesting
           aria_label = element[:"aria-label"]
           aria_labelledby = element[:"aria-labelledby"]
           title = element[:title]
+          href = element[:href]
           
           # Check if element contains ERB placeholder (for static scanning)
           # ErbExtractor replaces <%= ... %> with "ERB_CONTENT" so we can detect it
@@ -68,12 +75,24 @@ module RailsAccessibilityTesting
           aria_labelledby_empty = aria_labelledby.nil? || aria_labelledby.to_s.strip.empty?
           title_empty = title.nil? || title.to_s.strip.empty?
           
+          # Only report violation if element has no accessible name
+          # For links with href="#", we only flag if they have no text AND no aria-label AND no aria-labelledby
+          # Links with href="#" that have visible text or ARIA attributes are valid and should not be flagged
           if text_empty && aria_label_empty && aria_labelledby_empty && title_empty && !has_image_with_alt
             element_ctx = element_context(element)
             tag = element.tag_name
             
+            # Special message for empty links with href="#"
+            # This rule correctly detects anchors with href="#" that have no accessible name,
+            # but avoids false positives when they have visible text or aria-label/aria-labelledby
+            message = if tag == 'a' && (href == '#' || href.to_s.strip == '#')
+              "Link missing accessible name [href: #]"
+            else
+              "#{tag.capitalize} missing accessible name"
+            end
+            
             violations << violation(
-              message: "#{tag.capitalize} missing accessible name",
+              message: message,
               element_context: element_ctx,
               wcag_reference: tag == 'a' ? "2.4.4" : "4.1.2",
               remediation: generate_remediation(tag, element_ctx)

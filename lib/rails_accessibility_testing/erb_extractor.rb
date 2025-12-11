@@ -4,6 +4,12 @@ module RailsAccessibilityTesting
   # Extracts HTML from ERB templates by converting Rails helpers to HTML
   # This allows static analysis of view files without rendering them
   #
+  # @note ERB and ID handling:
+  #   - Dynamic IDs like "collection_answers_<%= question.id %>_<%= option.id %>_" are preserved
+  #   - ERB expressions are replaced with "ERB_CONTENT" placeholder to maintain structure
+  #   - This ensures IDs like "collection_answers_ERB_CONTENT_ERB_CONTENT_" are not collapsed
+  #   - Labels with matching ERB structure will also have "ERB_CONTENT" and can be matched
+  #
   # @api private
   class ErbExtractor
     # Convert ERB template to HTML for static analysis
@@ -26,8 +32,57 @@ module RailsAccessibilityTesting
 
     private
 
+    # Convert raw HTML elements that have ERB in their attributes
+    # This handles cases like: <input id="collection_answers_<%= question.id %>_<%= option.id %>_">
+    # We need to preserve the structure of dynamic IDs so they don't get collapsed
+    # 
+    # @note This must run BEFORE remove_erb_tags to preserve ERB structure in attributes
+    def convert_raw_html_with_erb
+      # Handle input elements (checkbox, radio, text, etc.) with ERB in attributes
+      # Pattern: <input ... id="...<%= ... %>..." ... />
+      @content.gsub!(/<input\s+([^>]*?)>/i) do |match|
+        attrs = $1
+        # Replace ERB in attributes with placeholder, preserving structure
+        # This ensures "id='collection_answers_<%= question.id %>_<%= option.id %>_'" 
+        # becomes "id='collection_answers_ERB_CONTENT_ERB_CONTENT_'"
+        attrs_with_placeholders = attrs.gsub(/<%=(.*?)%>/m, 'ERB_CONTENT')
+        "<input #{attrs_with_placeholders}>"
+      end
+      
+      # Handle label_tag with string interpolation in first argument: <%= label_tag "collection_answers_#{question.id}_#{option.id}_", option.value %>
+      # This handles string interpolation like "collection_answers_#{question.id}_#{option.id}_"
+      # Must match BEFORE the simple string pattern
+      @content.gsub!(/<%=\s*label_tag\s+["']([^"']*#\{[^}]+\}[^"']*)["'],\s*([^,]+)(?:,\s*[^%]*)?%>/) do
+        id_template = $1
+        text_expr = $2
+        # Replace Ruby interpolation with placeholder
+        id_with_placeholder = id_template.gsub(/#\{[^}]+\}/, 'ERB_CONTENT')
+        # Handle text expression - could be a variable, string, or method call
+        text_placeholder = if text_expr.strip.match?(/^["']/)
+          # It's a string literal
+          text_expr.strip.gsub(/^["']|["']$/, '')
+        else
+          # It's a variable or method call - will produce content at runtime
+          'ERB_CONTENT'
+        end
+        "<label for=\"#{id_with_placeholder}\">#{text_placeholder}</label>"
+      end
+      
+      # Handle label_tag helper with simple string: <%= label_tag "id_string", "text", options %>
+      # Pattern: label_tag "id_string", "text", options
+      @content.gsub!(/<%=\s*label_tag\s+["']([^"']+)["'],\s*["']?([^"']*?)["']?[^%]*%>/) do
+        id = $1
+        text = $2
+        # Replace ERB in id string with placeholder (if any)
+        id_with_placeholder = id.gsub(/<%=(.*?)%>/m, 'ERB_CONTENT')
+        "<label for=\"#{id_with_placeholder}\">#{text}</label>"
+      end
+    end
+
     # Convert Rails helpers to placeholder HTML
     def convert_rails_helpers
+      # First, handle raw HTML elements with ERB in attributes (before removing ERB tags)
+      convert_raw_html_with_erb
       convert_form_helpers
       convert_image_helpers
       convert_link_helpers

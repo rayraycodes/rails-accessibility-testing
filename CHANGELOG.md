@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2024-12-XX
+
+### Added
+- **Intelligent ERB Template Handling**: Enhanced ERB extractor to preserve dynamic ID structure from ERB templates
+- **Dynamic ID Support**: Static scanner now correctly handles checkbox/radio inputs with ERB-generated IDs (e.g., `collection_answers_<%= question.id %>_<%= option.id %>_`)
+- **Label Matching for Dynamic IDs**: Form labels check now correctly matches labels to inputs with dynamic IDs by preserving ERB placeholder structure
+- **Smart Duplicate ID Detection**: Duplicate ID check now excludes dynamic IDs with ERB placeholders, preventing false positives for checkbox/radio groups in loops
+
+### Fixed
+- Fixed false positive "Form input missing label [id: collection_answers]" for checkbox groups with dynamic IDs
+- Fixed false positive "Duplicate ID 'collection_answers' found" when IDs contain ERB expressions
+- Fixed missing accessible name detection for links with `href="#"` - now only flags links that truly lack accessible names (visible text, aria-label, or aria-labelledby)
+- Improved `label_tag` helper conversion to handle string interpolation in ID arguments
+- Enhanced raw HTML input element processing to preserve ERB structure in attributes
+
+### Changed
+- **ERB Extractor**: Now processes raw HTML elements with ERB in attributes before removing ERB tags, preserving dynamic ID structure
+- **Form Labels Check**: Updated to handle ERB placeholders in IDs when checking for associated labels
+- **Duplicate IDs Check**: Now filters out IDs containing `ERB_CONTENT` placeholders from duplicate detection
+- **Interactive Elements Check**: Enhanced to correctly detect accessible names for links with `href="#"`, avoiding false positives
+- **RSpec Test File**: Refactored `all_pages_accessibility_spec.rb` to extract formatting helper and add proper assertions that fail tests when errors are found
+
+### Documentation
+- Added comprehensive documentation on ERB template handling and dynamic ID processing
+- Updated architecture documentation with details on how dynamic IDs are preserved
+- Added examples and explanations for checkbox/radio groups with ERB-generated IDs
+
 ## [1.5.10] - 2024-12-01
 
 ### Changed

@@ -167,6 +167,61 @@ graph TB
     style Report fill:#ffeaa7
 ```
 
+### ERB Template Handling and Dynamic IDs
+
+The static scanner intelligently handles ERB templates with dynamic content, particularly for form inputs with dynamic IDs.
+
+#### How Dynamic IDs Are Preserved
+
+When the scanner encounters ERB templates with dynamic IDs, it preserves the structure instead of collapsing them:
+
+**Example ERB Template:**
+```erb
+<% question.collection_options.each do |option| %>
+  <input type="checkbox" 
+         id="collection_answers_<%= question.id %>_<%= option.id %>_"
+         name="collection_answers[<%= question.id %>][]" />
+  <%= label_tag "collection_answers_#{question.id}_#{option.id}_", option.value %>
+<% end %>
+```
+
+**How It's Processed:**
+- ERB expressions (`<%= question.id %>`, `<%= option.id %>`) are replaced with `ERB_CONTENT` placeholders
+- The structure is preserved: `collection_answers_ERB_CONTENT_ERB_CONTENT_`
+- This allows the scanner to correctly match inputs with their labels, even when IDs are dynamic
+
+#### Label Matching with Dynamic IDs
+
+The **Form Labels Check** correctly matches labels to inputs with dynamic IDs:
+- Input: `id="collection_answers_ERB_CONTENT_ERB_CONTENT_"`
+- Label: `for="collection_answers_ERB_CONTENT_ERB_CONTENT_"`
+- ✅ **Match found** - The scanner recognizes these as matching pairs
+
+#### Duplicate ID Detection
+
+The **Duplicate IDs Check** intelligently handles dynamic IDs:
+- IDs containing `ERB_CONTENT` are excluded from duplicate checking
+- These represent dynamic IDs that will have different values at runtime
+- Only static IDs (without ERB placeholders) are checked for duplicates
+- This prevents false positives for checkbox/radio groups in loops
+
+#### Links with href="#"
+
+The **Interactive Elements Check** correctly handles anchor links:
+- Only flags links with `href="#"` that have **no accessible name**
+- An accessible name can be: visible text, `aria-label`, or `aria-labelledby`
+- Links with `href="#"` that have proper labeling are **not flagged** (avoids false positives)
+
+**Example - Valid (not flagged):**
+```erb
+<%= link_to "Click me", "#", aria: { label: "Navigate to section" } %>
+```
+
+**Example - Invalid (flagged):**
+```erb
+<a href="#"></a>  <!-- No text, no aria-label, no aria-labelledby -->
+```
+
 ---
 
 ## Configuration & Profiles
