@@ -9,12 +9,67 @@ You can customize how the gem works by creating a `config/accessibility.yml` fil
 
 ---
 
+## 🚨 Production Deployment Safety
+
+**Important:** The gem is designed to be excluded from production environments. By default, accessibility tests are disabled to prevent them from running in production or blocking CI/CD pipelines.
+
+### Production Safety Features
+
+1. **Disabled by Default** - `accessibility_enabled: false` prevents tests from running automatically
+2. **Production Guard** - Initializer includes `if defined?(RailsAccessibilityTesting)` check
+3. **Gem Exclusion** - Gem should be in `:development, :test` group only
+
+### Recommended Production Setup
+
+**In your `Gemfile`:**
+```ruby
+group :development, :test do
+  gem 'rails_accessibility_testing'
+  # ... other test gems
+end
+```
+
+**In `config/accessibility.yml`:**
+```yaml
+# Disabled by default - prevents CI/CD failures and production execution
+accessibility_enabled: false
+```
+
+**In `config/initializers/rails_a11y.rb`:**
+```ruby
+# Production safety guard - prevents errors if gem not available
+if defined?(RailsAccessibilityTesting)
+  RailsAccessibilityTesting.configure do |config|
+    config.auto_run_checks = false
+  end
+end
+```
+
+**Why this matters:**
+- ✅ Prevents accessibility tests from blocking CI/CD pipelines
+- ✅ Safe deployment even if gem configuration exists
+- ✅ No errors if gem is excluded from production bundle
+- ✅ Manual testing available: `rspec spec/accessibility/all_pages_accessibility_spec.rb`
+
+📖 **See [Best Practices Guide](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/best_practices.md) for detailed production configuration recommendations.**
+
+---
+
 ## Quick Start Configuration
 
 Here is the configuration file structure that gets generated when you run the installer:
 
 ```yaml
 # config/accessibility.yml
+
+# Global enable/disable flag for all accessibility checks
+# Set to false to completely disable all accessibility checks (manual and automatic)
+# When false, check_comprehensive_accessibility and automatic checks will be skipped
+# Default: false 
+#   (Set to false to allow other RSpec tests to pass in GitHub Actions CI even if accessibility tests fail.
+#    When true, any failing accessibility tests will cause the entire CI pipeline to fail.)
+# Set to true to run accessibility checks manually: rspec spec/accessibility/all_pages_accessibility_spec.rb
+accessibility_enabled: false
 
 # WCAG compliance level (A, AA, AAA)
 wcag_level: AA
@@ -172,11 +227,27 @@ For advanced setup (like changing the logger), create an initializer:
 
 ```ruby
 # config/initializers/rails_a11y.rb
-RailsAccessibilityTesting.configure do |config|
-  config.auto_run_checks = true  # Note: Can be overridden by YAML config
-  config.logger = Rails.logger
-  config.default_profile = :test
+
+# Production safety guard - prevents errors if gem not available in production
+if defined?(RailsAccessibilityTesting)
+  RailsAccessibilityTesting.configure do |config|
+    # Automatically run checks after system specs
+    # Set to false to disable automatic checks (recommended)
+    config.auto_run_checks = false  # Note: Can be overridden by YAML config
+    
+    # Logger for accessibility check output
+    # Set to nil to use default logger
+    # config.logger = Rails.logger
+    
+    # Configuration file path (relative to Rails.root)
+    # config.config_path = 'config/accessibility.yml'
+  
+    # Default profile to use (development, test, ci)
+    # config.default_profile = :test
+  end
 end
 ```
+
+**Production Safety:** The `if defined?(RailsAccessibilityTesting)` guard ensures the configuration only loads if the gem is available, preventing errors in production environments where the gem may be excluded.
 
 **Important:** The YAML `system_specs.auto_run` setting takes precedence over `config.auto_run_checks` from the initializer. Use YAML for environment-specific control.

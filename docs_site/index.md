@@ -7,7 +7,7 @@ title: Home
 
 **The RSpec + RuboCop of accessibility for Rails. Catch WCAG violations before they reach production.**
 
-**Version:** 1.6.0
+**Version:** 1.7.0
 
 Rails Accessibility Testing is a comprehensive, opinionated but configurable gem that makes accessibility testing as natural as unit testing. It integrates seamlessly into your Rails workflow, catching accessibility issues as you code—not after deployment.
 
@@ -156,16 +156,28 @@ The gem automatically runs **11 comprehensive accessibility checks**:
 10. ✅ **Skip Links** - Skip navigation links present (detects various patterns)
 11. ✅ **Color Contrast** - Text meets contrast requirements (optional)
 
+## 🚨 Production Deployment Safety
+
+**Important:** The gem is designed to be excluded from production environments. By default, accessibility tests are disabled to prevent them from running in production or blocking CI/CD pipelines.
+
+**Quick Setup:**
+- Add gem to `group :development, :test` in Gemfile
+- Set `accessibility_enabled: false` in `config/accessibility.yml`
+- Use production safety guard in initializer: `if defined?(RailsAccessibilityTesting)`
+
+📖 **[See Configuration Guide]({{ '/configuration.html' | relative_url }})** for detailed production setup instructions.
+
 ## 📚 Documentation
 
 - [Getting Started]({{ '/getting_started.html' | relative_url }}) - Quick start guide
 - [Architecture]({{ '/architecture.html' | relative_url }}) - Visual diagrams and internal architecture
-- [Configuration]({{ '/configuration.html' | relative_url }}) - Configuration options
+- [Configuration]({{ '/configuration.html' | relative_url }}) - ⭐ **Production safety & configuration options**
 - [CI Integration]({{ '/ci_integration.html' | relative_url }}) - CI/CD setup
 - [Contributing]({{ '/contributing.html' | relative_url }}) - How to contribute
 
 ### Additional Guides
 
+- [Best Practices](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/best_practices.md) - ⭐ **Production-tested configuration patterns**
 - [System Specs for Accessibility](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/system_specs_for_accessibility.md) - ⭐ Recommended approach
 - [Writing Accessible Views](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/writing_accessible_views_in_rails.md) - Best practices
 - [Working with Designers](https://github.com/rayraycodes/rails-accessibility-testing/blob/main/GUIDES/working_with_designers_and_content_authors.md) - Team collaboration
