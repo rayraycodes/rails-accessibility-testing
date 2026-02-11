@@ -280,6 +280,7 @@ Upload reports to:
 3. **Fail on violations** - Don't allow merging with issues
 4. **Report results** - Make status visible to team
 5. **Track trends** - Monitor violation counts over time
+6. **Disable by default** - Set `accessibility_enabled: false` in `config/accessibility.yml` to prevent accessibility tests from blocking other RSpec tests in CI. Enable manually when needed: `rspec spec/accessibility/all_pages_accessibility_spec.rb`
 
 ## Troubleshooting
 

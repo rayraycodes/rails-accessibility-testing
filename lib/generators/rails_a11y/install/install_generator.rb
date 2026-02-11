@@ -43,7 +43,11 @@ module RailsA11y
       end
       
       def create_all_pages_spec
-        spec_path = 'spec/system/all_pages_accessibility_spec.rb'
+        # Create spec/accessibility directory if it doesn't exist
+        spec_dir = 'spec/accessibility'
+        FileUtils.mkdir_p(spec_dir) unless File.directory?(spec_dir)
+        
+        spec_path = 'spec/accessibility/all_pages_accessibility_spec.rb'
         
         if File.exist?(spec_path)
           say "⚠️  #{spec_path} already exists. Skipping creation.", :yellow
@@ -113,7 +117,7 @@ module RailsA11y
         say "\n📋 Next Steps:", :yellow
         say ""
         say "  1. Run the accessibility tests:", :cyan
-        say "     bundle exec rspec spec/system/all_pages_accessibility_spec.rb"
+        say "     bundle exec rspec spec/accessibility/all_pages_accessibility_spec.rb"
         say ""
         say "  2. For static file scanning during development:", :cyan
         say "     bin/dev  # Starts web server + static accessibility scanner"

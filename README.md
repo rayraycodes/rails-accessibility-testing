@@ -447,6 +447,7 @@ Complete documentation site with all guides, examples, and API reference. The do
 ### Guides
 
 - **[System Specs for Accessibility](GUIDES/system_specs_for_accessibility.md)** - ⭐ **Recommended approach** - Using system specs for reliable accessibility testing
+- **[Best Practices](GUIDES/best_practices.md)** - ⭐ **Configuration recommendations** - Production-tested configuration patterns
 - **[Getting Started](GUIDES/getting_started.md)** - Quick start guide
 - **[Continuous Integration](GUIDES/continuous_integration.md)** - CI/CD setup
 - **[Writing Accessible Views](GUIDES/writing_accessible_views_in_rails.md)** - Best practices

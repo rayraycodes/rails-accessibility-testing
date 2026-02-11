@@ -1,0 +1,25 @@
+Subject: Rails Accessibility Testing v1.6.0 Release - Fixed False Positives
+
+Hi [Boss Name],
+
+I've just released version 1.6.0 of the Rails Accessibility Testing gem, which addresses critical false positive issues that were affecting accuracy.
+
+**Main Problem Solved:**
+The static file scanner was incorrectly flagging checkbox and radio button groups with dynamic IDs (common in Rails ERB templates) as missing labels or duplicate IDs, even when they were correctly implemented.
+
+**Key Improvements:**
+✅ Fixed false positives for dynamic form elements (checkbox/radio groups in loops)
+✅ Enhanced ERB template processing to accurately handle Rails patterns
+✅ Improved label matching for dynamically generated form inputs
+✅ Better duplicate ID detection that excludes dynamic IDs
+✅ Fixed link accessibility detection to avoid false positives
+
+**Impact:**
+This release significantly improves the scanner's accuracy for real-world Rails applications, reducing noise in reports and making the tool more reliable for teams. The changes ensure that correctly implemented accessibility features aren't flagged as errors.
+
+The release is now available on RubyGems and has been tagged in GitHub.
+
+Best regards,
+[Your Name]
+
+
