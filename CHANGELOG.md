@@ -7,16 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-02-11
+
 ### Changed
 - **Generator Templates Updated**: Improved default configuration based on production best practices
   - `accessibility.yml`: Changed `accessibility_enabled` default from `true` to `false` with detailed CI/CD documentation
   - `rails_a11y.rb`: Added production safety guard (`if defined?(RailsAccessibilityTesting)`) and set `auto_run_checks = false` by default
   - `all_pages_accessibility_spec.rb`: Changed RSpec type from `:system` to `:accessibility` and improved error formatting with unified helper method
   - Updated documentation URLs to correct GitHub Pages link
+  - Generator now creates `spec/accessibility/` directory instead of `spec/system/` for better organization
 - **Best Practices Guide**: Added comprehensive [Best Practices guide](GUIDES/best_practices.md) documenting production-tested configuration patterns
 
 ### Added
 - **[Best Practices Guide](GUIDES/best_practices.md)**: New guide documenting recommended configuration patterns based on real-world production usage, including CI/CD safety, production guards, and improved error formatting
+- **Template Updates Summary**: Added `TEMPLATE_UPDATES_SUMMARY.md` documenting all template improvements
 
 ## [1.6.0] - 2024-12-XX
 
